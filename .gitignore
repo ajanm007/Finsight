@@ -1,0 +1,25 @@
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.db
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+
+# Graphify output (large cache + generated files)
+graphify-out/
+
+# Misc
+.DS_Store
+*.log
+.pytest_cache/
+Finsight_PRD_v1_2.md

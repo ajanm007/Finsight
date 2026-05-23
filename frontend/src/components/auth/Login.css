@@ -1,0 +1,389 @@
+.login-wrapper {
+  --primary: #E8A838; /* FinSight Amber */
+  --primary-glow: rgba(232, 168, 56, 0.4);
+  --background: #0A0A0A;
+  --foreground: #F9F8F6;
+  --border: #2A2A2A;
+  --card-bg: rgba(15, 15, 15, 0.8);
+  
+  min-height: 100vh;
+  width: 100vw;
+  background-color: var(--background);
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  cursor: crosshair;
+}
+
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 80px 80px;
+  opacity: 0.5;
+}
+
+.bg-gradient-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%);
+  pointer-events: none;
+}
+
+.top-glow-line, .bottom-glow-line {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--primary-glow), transparent);
+}
+
+.top-glow-line { top: 0; }
+.bottom-glow-line { bottom: 0; }
+
+/* Header */
+.login-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 40px 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  z-index: 100;
+}
+
+.brand-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 24px;
+  letter-spacing: 0.4em;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.brand-tagline {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.system-status {
+  text-align: right;
+}
+
+.status-label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  opacity: 0.4;
+  margin-bottom: 4px;
+}
+
+.latency-label {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  opacity: 0.6;
+  font-family: monospace;
+}
+
+/* Main Card */
+.login-main {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 520px;
+  padding: 20px;
+}
+
+.login-card {
+  background-color: var(--card-bg);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(232, 168, 56, 0.2);
+  padding: 60px;
+  position: relative;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(232, 168, 56, 0.05);
+}
+
+.node-id {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 9px;
+  font-family: monospace;
+  letter-spacing: 0.2em;
+  opacity: 0.3;
+}
+
+.card-header {
+  margin-bottom: 48px;
+}
+
+.card-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  margin-bottom: 20px;
+}
+
+.title-underline {
+  width: 60px;
+  height: 2px;
+  background-color: var(--primary);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-label {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.terminal-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 0;
+  font-size: 18px;
+  color: var(--foreground);
+  outline: none;
+  transition: border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.terminal-input:focus {
+  border-bottom-color: var(--primary);
+}
+
+/* Biometrics */
+.biometric-section {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.biometric-scanner {
+  width: 80px;
+  height: 80px;
+  border: 1px solid rgba(232, 168, 56, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.biometric-scanner:hover {
+  background-color: rgba(232, 168, 56, 0.05);
+  border-color: var(--primary);
+}
+
+.fingerprint-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--primary);
+  opacity: 0.6;
+  transition: opacity 0.5s;
+}
+
+.biometric-scanner:hover .fingerprint-icon {
+  opacity: 1;
+}
+
+.scan-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
+  opacity: 0;
+}
+
+.biometric-scanner.scanning .scan-line {
+  opacity: 1;
+  animation: scan 2s linear infinite;
+}
+
+@keyframes scan {
+  0% { top: 0; }
+  100% { top: 100%; }
+}
+
+.biometric-info {
+  flex: 1;
+  font-size: 11px;
+  line-height: 1.6;
+  letter-spacing: 0.1em;
+  opacity: 0.4;
+  text-transform: uppercase;
+}
+
+/* Button */
+.login-button {
+  height: 64px;
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.4em;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: color 0.4s;
+}
+
+.btn-hover-bg {
+  position: absolute;
+  inset: 0;
+  background-color: var(--primary);
+  transform: translateY(100%);
+  transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.login-button:hover .btn-hover-bg {
+  transform: translateY(0);
+}
+
+.btn-text-hover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  transform: translateY(100%);
+  transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.login-button:hover .btn-text-hover {
+  transform: translateY(0);
+}
+
+.login-button:hover .btn-text {
+  opacity: 0;
+}
+
+.card-footer {
+  margin-top: 48px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.footer-link {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--foreground);
+  opacity: 0.4;
+  text-decoration: none;
+  transition: opacity 0.3s, color 0.3s;
+}
+
+.footer-link:hover {
+  opacity: 1;
+  color: var(--primary);
+}
+
+/* Page Footer */
+.login-page-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 40px 60px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+}
+
+.footer-meta {
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  opacity: 0.4;
+}
+
+.footer-meta p { margin-bottom: 4px; }
+
+.footer-protocol {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.protocol-bar {
+  width: 48px;
+  height: 2px;
+  background-color: rgba(232, 168, 56, 0.1);
+}
+
+.protocol-progress {
+  width: 30%;
+  height: 100%;
+  background-color: var(--primary);
+  animation: pulse-progress 2s ease-in-out infinite;
+}
+
+@keyframes pulse-progress {
+  0%, 100% { opacity: 0.3; width: 20%; }
+  50% { opacity: 1; width: 60%; }
+}
+
+.protocol-label {
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  opacity: 0.6;
+  font-family: monospace;
+}
+
+/* Side Accents */
+.side-accent-left, .side-accent-right {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 48px;
+  opacity: 0.2;
+}
+
+.side-accent-left { left: 24px; }
+.side-accent-right { right: 24px; }
+
+.accent-line {
+  width: 1px;
+  height: 120px;
+  background: linear-gradient(180deg, transparent, var(--primary), transparent);
+}
+
+.accent-text {
+  font-size: 9px;
+  writing-mode: vertical-lr;
+  letter-spacing: 0.4em;
+  color: var(--primary);
+}
