@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function Sidebar({ collapsed, onToggle, activeView, onViewChange, onLogout }) {
+export default function Sidebar({ collapsed, onToggle, activeView, onViewChange, onLogout, onOpenHelp }) {
   const NavItem = ({ id, label, icon, disabled = false }) => {
     const active = activeView === id;
     
@@ -69,7 +69,7 @@ export default function Sidebar({ collapsed, onToggle, activeView, onViewChange,
       </div>
 
       <div style={{ padding: collapsed ? '24px 8px' : '24px 16px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ padding: '8px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }} title="HELP">
+        <div style={{ padding: '8px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', justifyContent: collapsed ? 'center' : 'flex-start' }} title="HELP" onClick={onOpenHelp}>
           <span>?</span> {!collapsed && <span>HELP</span>}
         </div>
         <div 
