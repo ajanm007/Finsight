@@ -152,7 +152,9 @@ async def select_tools(ticker: str) -> list[str]:
 
             # Validate tool names
             valid_tools = {"fetch_price_data", "compute_technicals", "fetch_news",
-                          "run_sentiment", "fetch_sec_filing", "retrieve_from_vector_store"}
+                          "run_sentiment", "fetch_sec_filing", "fetch_sec_quarterly",
+                          "fetch_fundamentals", "retrieve_from_vector_store", "fetch_nse_quote_data",
+                          "fetch_nse_corporate_actions", "fetch_stocktwits_sentiment", "fetch_finnhub_data"}
             tools = [str(t) for t in raw_tools if str(t) in valid_tools]
 
             # Ensure run_sentiment has fetch_news
@@ -177,7 +179,11 @@ def _run_tool(tool_name: str, ticker: str, context: dict, force_refresh: bool = 
     from tools.technicals import compute_technicals
     from tools.news import fetch_news
     from tools.sentiment import run_sentiment
-    from tools.sec_filing import fetch_sec_filing
+    from tools.sec_filing import fetch_sec_filing, fetch_sec_quarterly
+    from tools.fundamentals import fetch_fundamentals
+    from tools.nse_india import fetch_nse_quote_data, fetch_nse_corporate_actions
+    from tools.stocktwits import fetch_stocktwits_sentiment
+    from tools.finnhub import fetch_finnhub_data
 
     start = time.time()
 
@@ -190,7 +196,6 @@ def _run_tool(tool_name: str, ticker: str, context: dict, force_refresh: bool = 
         elif tool_name == "fetch_news":
             result = fetch_news(ticker, force_refresh=force_refresh)
         elif tool_name == "run_sentiment":
-            # Sentiment needs articles from news
             news_data = context.get("fetch_news")
             if news_data and news_data.get("articles"):
                 result = run_sentiment(news_data["articles"])
@@ -198,6 +203,18 @@ def _run_tool(tool_name: str, ticker: str, context: dict, force_refresh: bool = 
                 result = {"status": "UNAVAILABLE", "error": "No news articles available for sentiment"}
         elif tool_name == "fetch_sec_filing":
             result = fetch_sec_filing(ticker, force_refresh=force_refresh)
+        elif tool_name == "fetch_sec_quarterly":
+            result = fetch_sec_quarterly(ticker, force_refresh=force_refresh)
+        elif tool_name == "fetch_fundamentals":
+            result = fetch_fundamentals(ticker, force_refresh=force_refresh)
+        elif tool_name == "fetch_nse_quote_data":
+            result = fetch_nse_quote_data(ticker, force_refresh=force_refresh)
+        elif tool_name == "fetch_nse_corporate_actions":
+            result = fetch_nse_corporate_actions(ticker, force_refresh=force_refresh)
+        elif tool_name == "fetch_stocktwits_sentiment":
+            result = fetch_stocktwits_sentiment(ticker, force_refresh=force_refresh)
+        elif tool_name == "fetch_finnhub_data":
+            result = fetch_finnhub_data(ticker, force_refresh=force_refresh)
         elif tool_name == "retrieve_from_vector_store":
             from tools.vector_store import retrieve_from_vector_store
             # For query tool, use the ticker as default query if none provided in context
@@ -219,27 +236,43 @@ def _run_tool(tool_name: str, ticker: str, context: dict, force_refresh: bool = 
 
 
 async def _run_tool_async(tool_name: str, ticker: str, context: dict, force_refresh: bool = False) -> tuple[str, dict]:
-    """Wrap sync tool execution for asyncio.gather() with optional timeout."""
+    """Wrap sync tool execution for asyncio.gather() with per-tool timeouts."""
     loop = asyncio.get_running_loop()
-    
-    # 10s hard timeout for sentiment analysis
-    if tool_name == "run_sentiment":
+
+    # Per-tool timeout map (seconds). None = no timeout.
+    TIMEOUTS = {
+        "run_sentiment": 10.0,
+        "fetch_stocktwits_sentiment": 12.0,
+        "fetch_finnhub_data": 12.0,
+        "fetch_nse_corporate_actions": 15.0,
+        "fetch_news": 20.0,
+        "fetch_sec_filing": 30.0,
+        "fetch_sec_quarterly": 30.0,
+    }
+
+    FALLBACKS = {
+        "run_sentiment": {"status": "AVAILABLE", "avg_score": 0.0, "overall_sentiment": "neutral",
+                          "error": "Timeout", "per_article": []},
+        "fetch_stocktwits_sentiment": {"status": "UNAVAILABLE", "error": "Timeout"},
+        "fetch_finnhub_data": {"status": "UNAVAILABLE", "error": "Timeout"},
+        "fetch_nse_corporate_actions": {"status": "UNAVAILABLE", "error": "Timeout"},
+        "fetch_news": {"status": "UNAVAILABLE", "articles": [], "article_count": 0, "error": "Timeout"},
+        "fetch_sec_filing": {"status": "UNAVAILABLE", "error": "Timeout"},
+        "fetch_sec_quarterly": {"status": "UNAVAILABLE", "error": "Timeout"},
+    }
+
+    timeout = TIMEOUTS.get(tool_name)
+    coro = loop.run_in_executor(None, _run_tool, tool_name, ticker, context, force_refresh)
+
+    if timeout is not None:
         try:
-            return await asyncio.wait_for(
-                loop.run_in_executor(None, _run_tool, tool_name, ticker, context, force_refresh),
-                timeout=10.0
-            )
+            return await asyncio.wait_for(coro, timeout=timeout)
         except asyncio.TimeoutError:
-            logger.warning(f"[router] {tool_name} timed out after 10s — using neutral fallback")
-            return tool_name, {
-                "status": "AVAILABLE", 
-                "avg_score": 0.0, 
-                "overall_sentiment": "neutral",
-                "error": "Timeout reached — neutral fallback used",
-                "per_article": []
-            }
-            
-    return await loop.run_in_executor(None, _run_tool, tool_name, ticker, context, force_refresh)
+            logger.warning(f"[router] {tool_name} timed out after {timeout}s")
+            fallback = FALLBACKS.get(tool_name, {"status": "UNAVAILABLE", "error": "Timeout"})
+            return tool_name, {**fallback, "ticker": ticker.upper()}
+
+    return await coro
 
 
 async def execute_tools(ticker: str, tools: list[str], force_refresh: bool = False) -> dict[str, Any]:
@@ -247,21 +280,19 @@ async def execute_tools(ticker: str, tools: list[str], force_refresh: bool = Fal
     Execute selected tools in parallel via asyncio.gather().
 
     Handles dependency: run_sentiment needs fetch_news to complete first.
+    Price data is always pre-fetched alongside tool selection (called externally).
     """
     results = {}
 
-    # Split into independent tools and dependent tools
     independent = [t for t in tools if t != "run_sentiment"]
     dependent = [t for t in tools if t == "run_sentiment"]
 
-    # Phase 1: Run independent tools in parallel
     if independent:
         tasks = [_run_tool_async(t, ticker, results, force_refresh) for t in independent]
         phase1_results = await asyncio.gather(*tasks)
         for name, result in phase1_results:
             results[name] = result
 
-    # Phase 2: Run dependent tools (sentiment needs news data)
     if dependent:
         tasks = [_run_tool_async(t, ticker, results, force_refresh) for t in dependent]
         phase2_results = await asyncio.gather(*tasks)
@@ -333,11 +364,55 @@ def _summarize_for_prompt(tool_name: str, result: dict) -> dict:
         summary["bearish_count"] = result.get("bearish_count")
         summary["neutral_count"] = result.get("neutral_count")
 
-    elif tool_name == "fetch_sec_filing":
+    elif tool_name in ("fetch_sec_filing", "fetch_sec_quarterly"):
+        summary["form_type"] = result.get("form_type")
         summary["filing_date"] = result.get("filing_date")
-        # Truncate MD&A for prompt
         mda = result.get("mda_text", "")
         summary["mda_excerpt"] = mda[:2000] if mda else ""
+
+    elif tool_name == "fetch_fundamentals":
+        summary["pe_ratio"] = result.get("pe_ratio")
+        summary["forward_pe"] = result.get("forward_pe")
+        summary["eps_ttm"] = result.get("eps_ttm")
+        summary["profit_margin"] = result.get("profit_margin")
+        summary["revenue_growth"] = result.get("revenue_growth")
+        summary["earnings_growth"] = result.get("earnings_growth")
+        summary["analyst_target_price"] = result.get("analyst_target_price")
+        summary["analyst_low_target"] = result.get("analyst_low_target")
+        summary["analyst_high_target"] = result.get("analyst_high_target")
+        summary["recommendation"] = result.get("recommendation")
+        summary["num_analysts"] = result.get("num_analysts")
+        summary["debt_to_equity"] = result.get("debt_to_equity")
+        summary["short_ratio"] = result.get("short_ratio")
+        summary["short_percent_float"] = result.get("short_percent_float")
+        summary["quarterly_revenue"] = result.get("quarterly_revenue")
+        summary["quarterly_earnings"] = result.get("quarterly_earnings")
+
+    elif tool_name == "fetch_nse_quote_data":
+        summary["last_price"] = result.get("last_price")
+        summary["delivery_to_traded_quantity"] = result.get("delivery_to_traded_quantity")
+        summary["week_high_52"] = result.get("week_high_52")
+        summary["week_low_52"] = result.get("week_low_52")
+        summary["mac"] = result.get("mac")
+
+    elif tool_name == "fetch_nse_corporate_actions":
+        summary["has_upcoming_events"] = result.get("has_upcoming_events")
+        summary["upcoming_events"] = result.get("upcoming_events", [])[:3]
+        summary["recent_results"] = result.get("recent_results", [])[:2]
+
+    elif tool_name == "fetch_stocktwits_sentiment":
+        summary["overall_sentiment"] = result.get("overall_sentiment")
+        summary["bull_count"] = result.get("bull_count")
+        summary["bear_count"] = result.get("bear_count")
+        summary["message_count"] = result.get("message_count")
+        msgs = result.get("messages", [])
+        summary["top_messages"] = [{"body": m["body"], "sentiment": m["sentiment"]} for m in msgs[:5]]
+
+    elif tool_name == "fetch_finnhub_data":
+        summary["news_count"] = result.get("news_count")
+        summary["news"] = [{"headline": a["headline"], "source": a["source"]} for a in result.get("news", [])[:5]]
+        summary["earnings_surprises"] = result.get("earnings_surprises", [])[:2]
+        summary["insider_sentiment"] = result.get("insider_sentiment")
 
     elif tool_name == "retrieve_from_vector_store":
         summary["query"] = result.get("query")
@@ -500,12 +575,19 @@ async def analyze_ticker(ticker: str, force_refresh: bool = False) -> dict[str, 
 
     start_time = time.time()
 
-    # Step 1: Select tools
-    tools = await select_tools(ticker)
+    # Step 1: Select tools concurrently with price pre-fetch (price is always needed)
+    loop = asyncio.get_running_loop()
+    tools, price_prefetch = await asyncio.gather(
+        select_tools(ticker),
+        loop.run_in_executor(None, _run_tool, "fetch_price_data", ticker, {}, force_refresh),
+    )
     logger.info(f"[router] Analyzing {ticker} with tools: {tools}")
 
-    # Step 2: Execute tools in parallel
+    # Step 2: Execute tools in parallel, injecting pre-fetched price result
     tool_results = await execute_tools(ticker, tools, force_refresh=force_refresh)
+    # Merge pre-fetched price (don't overwrite if execute_tools also ran it)
+    if "fetch_price_data" not in tool_results:
+        tool_results["fetch_price_data"] = price_prefetch[1]
 
     # Step 3: Generate brief text
     brief_text = await generate_brief_text(ticker, tool_results)
@@ -592,6 +674,31 @@ def _determine_net_signal(tool_results: dict, conflicts: list[str]) -> str:
             if change > 0:
                 signals.append(1)
             elif change < 0:
+                signals.append(-1)
+
+    # Fundamentals signals
+    fund = tool_results.get("fetch_fundamentals", {})
+    if fund.get("status") in ("AVAILABLE", "CACHED"):
+        rec = fund.get("recommendation", "")
+        if rec in ("buy", "strong_buy"):
+            signals.append(1)
+        elif rec in ("sell", "underperform", "strong_sell"):
+            signals.append(-1)
+
+        eg = fund.get("earnings_growth")
+        if eg is not None:
+            if eg > 0.15:
+                signals.append(1)
+            elif eg < -0.10:
+                signals.append(-1)
+
+        target = fund.get("analyst_target_price")
+        price_val = tool_results.get("fetch_price_data", {}).get("current_price")
+        if target and price_val and price_val > 0:
+            upside = (target - price_val) / price_val
+            if upside > 0.15:
+                signals.append(1)
+            elif upside < -0.10:
                 signals.append(-1)
 
     if not signals:
@@ -868,6 +975,218 @@ def _build_structured_signals(tool_results: dict) -> list[dict]:
                     "sources": [{"headline": a.get("title"), "outlet": a.get("source", "News Outlet"), "sentiment_score": a.get("sentiment_score")} for a in top_bearish]
                 })
 
+    # 4. Fundamentals Signals
+    fund = tool_results.get("fetch_fundamentals", {})
+    if fund.get("status") in ("AVAILABLE", "CACHED"):
+        current_price_val = tool_results.get("fetch_price_data", {}).get("current_price") or 0
+
+        # Analyst target price
+        target = fund.get("analyst_target_price")
+        if target and current_price_val > 0:
+            upside = (target - current_price_val) / current_price_val * 100
+            if upside > 15:
+                signals.append({
+                    "title": "ANALYST UPSIDE",
+                    "description": f"Consensus target ${target:.2f} implies {upside:.1f}% upside ({fund.get('num_analysts', 'N/A')} analysts).",
+                    "type": "bull",
+                    "status": fund.get("status").lower(),
+                    "source_type": "yfinance",
+                    "sources": [
+                        {"label": "Mean Target", "value": f"${target:.2f}"},
+                        {"label": "Range", "value": f"${fund.get('analyst_low_target') or 0:.2f}–${fund.get('analyst_high_target') or 0:.2f}"},
+                    ],
+                })
+            elif upside < -10:
+                signals.append({
+                    "title": "ANALYST DOWNSIDE",
+                    "description": f"Consensus target ${target:.2f} implies {abs(upside):.1f}% downside risk.",
+                    "type": "bear",
+                    "status": fund.get("status").lower(),
+                    "source_type": "yfinance",
+                    "sources": [{"label": "Mean Target", "value": f"${target:.2f}"}],
+                })
+
+        # Earnings growth
+        eg = fund.get("earnings_growth")
+        if eg is not None:
+            if eg > 0.15:
+                signals.append({
+                    "title": "EARNINGS GROWTH",
+                    "description": f"YoY earnings growth of {eg*100:.1f}% signals healthy expansion.",
+                    "type": "bull",
+                    "status": fund.get("status").lower(),
+                    "source_type": "yfinance",
+                    "sources": [{"label": "Earnings Growth (YoY)", "value": f"+{eg*100:.1f}%"}],
+                })
+            elif eg < -0.10:
+                signals.append({
+                    "title": "EARNINGS DECLINE",
+                    "description": f"YoY earnings contracted {abs(eg)*100:.1f}%, raising profitability concerns.",
+                    "type": "bear",
+                    "status": fund.get("status").lower(),
+                    "source_type": "yfinance",
+                    "sources": [{"label": "Earnings Growth (YoY)", "value": f"{eg*100:.1f}%"}],
+                })
+
+        # Forward vs trailing P/E
+        pe = fund.get("pe_ratio")
+        fpe = fund.get("forward_pe")
+        if pe and fpe and pe > 0 and fpe > 0:
+            if fpe < pe * 0.85:
+                signals.append({
+                    "title": "EARNINGS ACCELERATION",
+                    "description": f"Forward P/E ({fpe:.1f}x) below trailing P/E ({pe:.1f}x) — earnings expected to grow.",
+                    "type": "bull",
+                    "status": fund.get("status").lower(),
+                    "source_type": "yfinance",
+                    "sources": [{"label": "Forward P/E", "value": f"{fpe:.1f}x"}, {"label": "Trailing P/E", "value": f"{pe:.1f}x"}],
+                })
+            elif fpe > pe * 1.15:
+                signals.append({
+                    "title": "EARNINGS DECELERATION",
+                    "description": f"Forward P/E ({fpe:.1f}x) above trailing P/E ({pe:.1f}x) — earnings expected to decline.",
+                    "type": "bear",
+                    "status": fund.get("status").lower(),
+                    "source_type": "yfinance",
+                    "sources": [{"label": "Forward P/E", "value": f"{fpe:.1f}x"}, {"label": "Trailing P/E", "value": f"{pe:.1f}x"}],
+                })
+
+        # Short interest
+        short_ratio = fund.get("short_ratio")
+        if short_ratio and short_ratio > 8:
+            signals.append({
+                "title": "HIGH SHORT INTEREST",
+                "description": f"Short ratio of {short_ratio:.1f} days-to-cover signals elevated bearish positioning.",
+                "type": "bear",
+                "status": fund.get("status").lower(),
+                "source_type": "yfinance",
+                "sources": [{"label": "Short Ratio", "value": f"{short_ratio:.1f} days"}],
+            })
+
+        # Analyst recommendation
+        rec = fund.get("recommendation", "")
+        if rec in ("buy", "strong_buy"):
+            signals.append({
+                "title": "ANALYST BUY CONSENSUS",
+                "description": f"Wall Street consensus: {rec.replace('_', ' ').title()} ({fund.get('num_analysts', 'N/A')} analysts).",
+                "type": "bull",
+                "status": fund.get("status").lower(),
+                "source_type": "yfinance",
+                "sources": [{"label": "Recommendation", "value": rec.replace('_', ' ').title()}],
+            })
+        elif rec in ("sell", "underperform", "strong_sell"):
+            signals.append({
+                "title": "ANALYST SELL CONSENSUS",
+                "description": f"Wall Street consensus: {rec.replace('_', ' ').title()} ({fund.get('num_analysts', 'N/A')} analysts).",
+                "type": "bear",
+                "status": fund.get("status").lower(),
+                "source_type": "yfinance",
+                "sources": [{"label": "Recommendation", "value": rec.replace('_', ' ').title()}],
+            })
+
+    # 5. NSE Corporate Actions
+    corp = tool_results.get("fetch_nse_corporate_actions", {})
+    if corp.get("status") in ("AVAILABLE", "CACHED"):
+        events = corp.get("upcoming_events", [])
+        if events:
+            descriptions = "; ".join(e.get("purpose", "") for e in events[:2] if e.get("purpose"))
+            signals.append({
+                "title": "UPCOMING CATALYST",
+                "description": f"Board meeting / corporate event scheduled: {descriptions}.",
+                "type": "bull",
+                "status": corp.get("status").lower(),
+                "source_type": "nse",
+                "sources": [{"label": "Event Date", "value": events[0].get("date", "N/A")}],
+            })
+        results_filed = corp.get("recent_results", [])
+        if results_filed:
+            latest = results_filed[0]
+            signals.append({
+                "title": "RESULTS FILED",
+                "description": f"{latest.get('period', 'Recent')} results filed on {latest.get('filing_date', 'N/A')} ({latest.get('audited', '')}, {latest.get('consolidated', '')}).",
+                "type": "bull",
+                "status": corp.get("status").lower(),
+                "source_type": "nse",
+                "sources": [{"label": "Period", "value": latest.get("financial_year", "N/A")}],
+            })
+
+    # 7. StockTwits Sentiment
+    st = tool_results.get("fetch_stocktwits_sentiment", {})
+    if st.get("status") in ("AVAILABLE", "CACHED") and st.get("message_count", 0) > 0:
+        overall = st.get("overall_sentiment", "neutral")
+        bull = st.get("bull_count", 0)
+        bear = st.get("bear_count", 0)
+        total = st.get("message_count", 1)
+        if overall == "bullish":
+            signals.append({
+                "title": "RETAIL BULLISH SENTIMENT",
+                "description": f"StockTwits: {bull}/{total} messages bullish ({bull/total*100:.0f}%).",
+                "type": "bull",
+                "status": st.get("status").lower(),
+                "source_type": "stocktwits",
+                "sources": [{"label": "Bull Messages", "value": str(bull)}, {"label": "Total", "value": str(total)}],
+            })
+        elif overall == "bearish":
+            signals.append({
+                "title": "RETAIL BEARISH SENTIMENT",
+                "description": f"StockTwits: {bear}/{total} messages bearish ({bear/total*100:.0f}%).",
+                "type": "bear",
+                "status": st.get("status").lower(),
+                "source_type": "stocktwits",
+                "sources": [{"label": "Bear Messages", "value": str(bear)}, {"label": "Total", "value": str(total)}],
+            })
+
+    # 8. Finnhub Signals
+    fh = tool_results.get("fetch_finnhub_data", {})
+    if fh.get("status") in ("AVAILABLE", "CACHED"):
+        # Earnings surprise
+        surprises = fh.get("earnings_surprises", [])
+        if surprises:
+            latest = surprises[0]
+            sp = latest.get("surprise_percent")
+            if sp is not None:
+                if sp > 5:
+                    signals.append({
+                        "title": "EARNINGS BEAT",
+                        "description": f"Latest earnings beat estimates by {sp:.1f}% (period: {latest.get('period', 'N/A')}).",
+                        "type": "bull",
+                        "status": fh.get("status").lower(),
+                        "source_type": "finnhub",
+                        "sources": [{"label": "Surprise %", "value": f"+{sp:.1f}%"}],
+                    })
+                elif sp < -5:
+                    signals.append({
+                        "title": "EARNINGS MISS",
+                        "description": f"Latest earnings missed estimates by {abs(sp):.1f}% (period: {latest.get('period', 'N/A')}).",
+                        "type": "bear",
+                        "status": fh.get("status").lower(),
+                        "source_type": "finnhub",
+                        "sources": [{"label": "Surprise %", "value": f"{sp:.1f}%"}],
+                    })
+
+        # Insider sentiment
+        insider = fh.get("insider_sentiment")
+        if insider:
+            mspr = insider.get("mspr", 0) or 0
+            if mspr > 0.1:
+                signals.append({
+                    "title": "INSIDER BUYING",
+                    "description": f"Insiders net buyers (MSPR: {mspr:.2f}) — positive internal conviction.",
+                    "type": "bull",
+                    "status": fh.get("status").lower(),
+                    "source_type": "finnhub",
+                    "sources": [{"label": "MSPR", "value": f"{mspr:.2f}"}],
+                })
+            elif mspr < -0.1:
+                signals.append({
+                    "title": "INSIDER SELLING",
+                    "description": f"Insiders net sellers (MSPR: {mspr:.2f}) — potential caution signal.",
+                    "type": "bear",
+                    "status": fh.get("status").lower(),
+                    "source_type": "finnhub",
+                    "sources": [{"label": "MSPR", "value": f"{mspr:.2f}"}],
+                })
+
     return signals
 
 
@@ -886,23 +1205,11 @@ async def _run_tool_with_events(
     loop = asyncio.get_running_loop()
 
     try:
-        if tool_name == "run_sentiment":
-            name, result = await asyncio.wait_for(
-                loop.run_in_executor(None, _run_tool, tool_name, ticker, context, force_refresh),
-                timeout=10.0
-            )
-        else:
-            name, result = await loop.run_in_executor(None, _run_tool, tool_name, ticker, context, force_refresh)
+        name, result = await _run_tool_async(tool_name, ticker, context, force_refresh)
     except asyncio.TimeoutError:
-        logger.warning(f"[stream] {tool_name} timed out — using neutral fallback")
+        logger.warning(f"[stream] {tool_name} timed out")
         name = tool_name
-        result = {
-            "status": "AVAILABLE", 
-            "avg_score": 0.0, 
-            "overall_sentiment": "neutral",
-            "error": "Timeout reached — neutral fallback used",
-            "_latency_ms": 10000
-        }
+        result = {"status": "UNAVAILABLE", "error": "Timeout", "_latency_ms": 0}
 
     latency = result.get("_latency_ms", 0)
     status = str(result.get("status", "UNAVAILABLE"))
@@ -963,18 +1270,34 @@ async def analyze_ticker_streaming(
         for t in initial_tools:
             await queue.put({"type": "status", "tool": t, "state": "pending", "status": "INITIALIZING"})
 
-        # Step 1: Select tools
+        # Step 1: Select tools concurrently with price pre-fetch
+        loop = asyncio.get_running_loop()
+        await queue.put({"type": "status", "tool": "fetch_price_data", "state": "running"})
         try:
-            tools = await select_tools(ticker)
+            tools, price_prefetch = await asyncio.gather(
+                select_tools(ticker),
+                loop.run_in_executor(None, _run_tool, "fetch_price_data", ticker, {}, force_refresh),
+            )
         except Exception as e:
             logger.error(f"[stream] Tool selection failed: {e}. Falling back to default.")
             tools = initial_tools
+            price_prefetch = ("fetch_price_data", {"status": "UNAVAILABLE", "error": str(e)})
+
+        # Emit price result event
+        _price_name, _price_result = price_prefetch
+        _price_status = str(_price_result.get("status", "UNAVAILABLE"))
+        if _price_status in ("AVAILABLE", "CACHED"):
+            await queue.put({"type": "status", "tool": "fetch_price_data", "state": "done",
+                             "status": _price_status, "latency_ms": _price_result.get("_latency_ms"), "result": _price_result})
+        else:
+            await queue.put({"type": "status", "tool": "fetch_price_data", "state": "failed",
+                             "error": str(_price_result.get("error", "Unknown"))})
 
         logger.info(f"[stream] Analyzing {ticker} with tools: {tools}")
-        results = {}
+        results = {"fetch_price_data": _price_result}
 
-        # Step 2: Execute tools
-        independent = [t for t in tools if t != "run_sentiment"]
+        # Step 2: Execute remaining tools (skip price since already fetched)
+        independent = [t for t in tools if t not in ("run_sentiment", "fetch_price_data")]
         if independent:
             tasks = [_run_tool_with_events(t, ticker, results, queue, force_refresh) for t in independent]
             phase1 = await asyncio.gather(*tasks)

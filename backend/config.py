@@ -25,6 +25,8 @@ class Settings(BaseSettings):
 
     # API keys
     TAVILY_API_KEY: str = Field(default="", description="Tavily API key for news search")
+    NEWSAPI_KEY: str = Field(default="", description="NewsAPI.org API key for supplementary news (free tier: 100 req/day)")
+    FINNHUB_API_KEY: str = Field(default="", description="Finnhub API key (free tier: 60 req/min)")
     HF_TOKEN: str = Field(default="", description="HuggingFace API token for gated models")
 
     # SEC EDGAR
@@ -52,11 +54,16 @@ settings = Settings()
 
 # Cache TTL (seconds)
 CACHE_TTL = {
-    "price": 300,                # 5 minutes
-    "technicals": 300,           # 5 minutes
-    "news": 6 * 60 * 60,         # 6 hours
-    "sentiment": 6 * 60 * 60,    # 6 hours
-    "sec_filing": 30 * 24 * 60 * 60,  # 30 days
+    "price": 300,                       # 5 minutes
+    "technicals": 300,                  # 5 minutes
+    "news": 6 * 60 * 60,                # 6 hours
+    "sentiment": 6 * 60 * 60,           # 6 hours
+    "sec_filing": 30 * 24 * 60 * 60,    # 30 days (annual 10-K)
+    "sec_10q": 7 * 24 * 60 * 60,        # 7 days (quarterly 10-Q)
+    "fundamentals": 24 * 60 * 60,       # 1 day
+    "nse_corporate": 6 * 60 * 60,        # 6 hours
+    "stocktwits": 2 * 60 * 60,          # 2 hours
+    "finnhub": 6 * 60 * 60,             # 6 hours
 }
 
 # Staleness penalty (per day past TTL)
@@ -66,6 +73,10 @@ STALENESS_PENALTY = {
     "news": 0.05,
     "sentiment": 0.05,
     "sec_filing": 0.02,
+    "sec_10q": 0.03,
+    "fundamentals": 0.05,
+    "stocktwits": 0.04,
+    "finnhub": 0.04,
 }
 
 # Confidence formula weights (legacy fractions kept for any future use)
