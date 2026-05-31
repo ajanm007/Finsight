@@ -9,14 +9,26 @@ __pycache__/
 *.pyo
 .venv/
 *.db
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
 
 # Node
 node_modules/
 dist/
 dist-ssr/
+frontend/.vite/
 
 # Graphify output (large cache + generated files)
 graphify-out/
+
+# AI tooling (local workspace, not source)
+.superdesign/
+.agents/
+skills-lock.json
+
+# Scratch / temp files
+backend/scratch_test.py
 
 # Misc
 .DS_Store
