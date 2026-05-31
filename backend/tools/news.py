@@ -1,8 +1,11 @@
-"""Fetch financial news via Tavily search API."""
+"""Fetch financial news via Tavily (primary) + NewsAPI.org (supplementary)."""
 
 import logging
 import time
+from datetime import datetime, timedelta
 from typing import Any
+
+import httpx
 
 from cache.store import get_cached, set_cached
 from config import settings
@@ -34,7 +37,42 @@ MOCK_ARTICLES = [
 ]
 
 
-def fetch_news(ticker: str, days: int = 7, force_refresh: bool = False) -> dict[str, Any]:
+def _fetch_newsapi(ticker: str, days: int = 14) -> list[dict]:
+    """Supplementary news fetch from NewsAPI.org."""
+    if not settings.NEWSAPI_KEY:
+        return []
+    try:
+        from_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        search_ticker = ticker[:-3] if ticker.endswith((".NS", ".BO")) else ticker
+        resp = httpx.get(
+            "https://newsapi.org/v2/everything",
+            params={
+                "q": f"{search_ticker} stock",
+                "language": "en",
+                "sortBy": "publishedAt",
+                "from": from_date,
+                "pageSize": 10,
+                "apiKey": settings.NEWSAPI_KEY,
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        articles = []
+        for a in resp.json().get("articles", []):
+            articles.append({
+                "title": a.get("title", ""),
+                "url": a.get("url", ""),
+                "snippet": (a.get("description") or a.get("content") or "")[:500],
+                "published_date": (a.get("publishedAt") or "")[:10],
+                "source": a.get("source", {}).get("name", ""),
+            })
+        return articles
+    except Exception as e:
+        logger.warning(f"[news] NewsAPI fetch failed for {ticker}: {e}")
+        return []
+
+
+def fetch_news(ticker: str, days: int = 14, force_refresh: bool = False) -> dict[str, Any]:
     """
     Fetch recent financial news for a ticker via Tavily.
     """
@@ -63,10 +101,11 @@ def fetch_news(ticker: str, days: int = 7, force_refresh: bool = False) -> dict[
         from tavily import TavilyClient
 
         client = TavilyClient(api_key=settings.TAVILY_API_KEY)
+        search_ticker = ticker[:-3] if ticker.endswith((".NS", ".BO")) else ticker
         response = client.search(
-            query=f"{ticker} stock news financial analysis",
+            query=f"{search_ticker} stock news financial analysis",
             search_depth="advanced",
-            max_results=10,
+            max_results=15,
             days=days,
         )
 
@@ -79,6 +118,15 @@ def fetch_news(ticker: str, days: int = 7, force_refresh: bool = False) -> dict[
                 "published_date": result_item.get("published_date", ""),
             })
 
+        # Supplement with NewsAPI (deduplicate by URL)
+        newsapi_articles = _fetch_newsapi(ticker, days=days)
+        if newsapi_articles:
+            existing_urls = {a["url"] for a in articles}
+            new_articles = [a for a in newsapi_articles if a["url"] not in existing_urls]
+            articles.extend(new_articles)
+            if new_articles:
+                logger.info(f"[news] Added {len(new_articles)} articles from NewsAPI for {ticker}")
+
         result = {
             "ticker": ticker.upper(),
             "articles": articles,
@@ -87,11 +135,9 @@ def fetch_news(ticker: str, days: int = 7, force_refresh: bool = False) -> dict[
             "source": "tavily",
         }
 
-        # Step 5: Embed in vector store
         try:
             from tools.vector_store import embed_document
             for article in articles:
-                # Combine title and snippet for better semantic search
                 combined_content = f"{article['title']} - {article['snippet']}"
                 embed_document(ticker, SOURCE_NAME, combined_content, {"url": article["url"], "published_date": article["published_date"]})
         except Exception as ve:
@@ -110,8 +156,9 @@ def fetch_news(ticker: str, days: int = 7, force_refresh: bool = False) -> dict[
             from tavily import TavilyClient
 
             client = TavilyClient(api_key=settings.TAVILY_API_KEY)
+            search_ticker = ticker[:-3] if ticker.endswith((".NS", ".BO")) else ticker
             response = client.search(
-                query=f"{ticker} stock news",
+                query=f"{search_ticker} stock news",
                 search_depth="basic",
                 max_results=5,
                 days=days,
