@@ -1,4 +1,5 @@
 import React from 'react';
+import Tooltip from '../common/Tooltip';
 
 export default function ConflictPanel({ conflicts }) {
   const hasConflicts = conflicts && conflicts.length > 0;
@@ -6,7 +7,16 @@ export default function ConflictPanel({ conflicts }) {
   return (
     <div style={{ marginTop: '16px' }}>
       <div style={{ color: hasConflicts ? 'var(--accent-amber)' : 'var(--accent-green)', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', letterSpacing: '1px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold' }}>
-        <span>{hasConflicts ? '⚑' : '✓'}</span> {hasConflicts ? 'SIGNAL CONFLICTS' : 'CROSS-VALIDATION: CLEAR'}
+        <span>{hasConflicts ? '⚑' : '✓'}</span>
+        <Tooltip
+          text={hasConflicts
+            ? "Two or more data sources are pointing in opposite directions. Example: news is positive but RSI says the stock is already overbought. The system surfaces these rather than silently averaging them away — conflicts are useful information."
+            : "All data sources agree with each other. No contradictions detected. This doesn't guarantee the verdict is right, but the system's reading is internally consistent."
+          }
+          width={260}
+        >
+          {hasConflicts ? 'SIGNAL CONFLICTS' : 'CROSS-VALIDATION: CLEAR'}
+        </Tooltip>
       </div>
 
       

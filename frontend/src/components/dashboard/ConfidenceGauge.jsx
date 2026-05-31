@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Tooltip from '../common/Tooltip';
 
 export default function ConfidenceGauge({ confidence }) {
   const [value, setValue] = useState(0);
@@ -28,7 +29,9 @@ export default function ConfidenceGauge({ confidence }) {
     <div style={{ position: 'relative', height: '180px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingBottom: '30px' }}>
       <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '1px', backgroundColor: 'var(--border)' }}></div>
       <div style={{ position: 'absolute', top: '-6px', left: '50%', transform: 'translateX(-50%)', padding: '0 12px', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)', fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-        MODEL CONFIDENCE
+        <Tooltip text="How certain the system is in its own reading — separate from whether the verdict is bullish or bearish. Low confidence means data was stale, sources conflicted, or key feeds were unavailable. Treat low-confidence briefs with more skepticism." width={250}>
+          MODEL CONFIDENCE
+        </Tooltip>
       </div>
       
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative', marginTop: '20px' }}>

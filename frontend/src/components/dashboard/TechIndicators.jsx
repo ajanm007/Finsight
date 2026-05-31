@@ -1,4 +1,5 @@
 import React from 'react';
+import Tooltip from '../common/Tooltip';
 
 export default function TechIndicators({ toolResults }) {
   const tech = toolResults?.compute_technicals || {};
@@ -43,7 +44,11 @@ export default function TechIndicators({ toolResults }) {
         
         {/* RSI */}
         <div className="panel panel-body" style={{ padding: '16px', borderTop: `2px solid ${rsiColor}` }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '10px', letterSpacing: '1px', marginBottom: '8px' }}>RSI (14)</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '10px', letterSpacing: '1px', marginBottom: '8px' }}>
+            <Tooltip text="Relative Strength Index. Scores 0–100. Above 70 = the stock has been bought heavily and may be due a pullback (overbought). Below 30 = it's been sold hard and may bounce (oversold). 30–70 is normal.">
+              RSI (14)
+            </Tooltip>
+          </div>
           <div style={{ color: rsiColor, fontSize: '24px', fontWeight: 'bold', fontFamily: 'var(--font-display)', marginBottom: '4px' }}>
             {rsi !== undefined ? Number(rsi).toFixed(1) : '--'}
           </div>
@@ -54,7 +59,11 @@ export default function TechIndicators({ toolResults }) {
         
         {/* MACD */}
         <div className="panel panel-body" style={{ padding: '16px', borderTop: `2px solid ${macdColor}` }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '10px', letterSpacing: '1px', marginBottom: '8px' }}>MACD</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '10px', letterSpacing: '1px', marginBottom: '8px' }}>
+            <Tooltip text="Moving Average Convergence Divergence. A momentum indicator. Positive (bullish crossover) means upward momentum is building. Negative (bearish crossover) means it's fading. Think of it as a speedometer for price direction.">
+              MACD
+            </Tooltip>
+          </div>
           <div style={{ color: macdColor, fontSize: '24px', fontWeight: 'bold', fontFamily: 'var(--font-display)', marginBottom: '4px' }}>
             {macdStr}
           </div>
@@ -66,7 +75,11 @@ export default function TechIndicators({ toolResults }) {
         
         {/* MA 50 */}
         <div className="panel panel-body" style={{ padding: '16px' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '10px', letterSpacing: '1px', marginBottom: '8px' }}>MA 50</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '10px', letterSpacing: '1px', marginBottom: '8px' }}>
+            <Tooltip text="50-day Moving Average — the average closing price over the last 50 trading days. If the current price is above this line, the stock is in a short-to-medium term uptrend. Below it = recent weakness.">
+              MA 50
+            </Tooltip>
+          </div>
           <div style={{ color: 'var(--text-primary)', fontSize: '24px', fontWeight: 'bold', fontFamily: 'var(--font-display)', marginBottom: '4px' }}>
             {ma50 !== undefined ? `$${Number(ma50).toFixed(1)}` : '--'}
           </div>
@@ -77,7 +90,11 @@ export default function TechIndicators({ toolResults }) {
         
         {/* MA 200 */}
         <div className="panel panel-body" style={{ padding: '16px' }}>
-          <div style={{ color: 'var(--text-muted)', fontSize: '10px', letterSpacing: '1px', marginBottom: '8px' }}>MA 200</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '10px', letterSpacing: '1px', marginBottom: '8px' }}>
+            <Tooltip text="200-day Moving Average — the big-picture health check. Above it = the stock is in a long-term uptrend. Below it = long-term downtrend. One of the most widely watched lines in professional finance." width={240}>
+              MA 200
+            </Tooltip>
+          </div>
           <div style={{ color: 'var(--text-primary)', fontSize: '24px', fontWeight: 'bold', fontFamily: 'var(--font-display)', marginBottom: '4px' }}>
             {ma200 !== undefined ? `$${Number(ma200).toFixed(1)}` : '--'}
           </div>
