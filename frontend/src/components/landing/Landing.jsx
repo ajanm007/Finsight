@@ -50,18 +50,11 @@ export default function Landing({ onSearch }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '11px', color: 'var(--text-muted)' }}>
         <span>TRENDING_SIGNALS:</span>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <div onClick={() => onSearch('NVDA')} style={{ border: '1px solid var(--border)', padding: '6px 12px', display: 'flex', gap: '8px', cursor: 'pointer' }}>
-            <span style={{ color: 'var(--text-primary)' }}>NVDA</span>
-            <span style={{ color: 'var(--accent-green)' }}>+2.41% ↗</span>
-          </div>
-          <div onClick={() => onSearch('AAPL')} style={{ border: '1px solid var(--border)', padding: '6px 12px', display: 'flex', gap: '8px', cursor: 'pointer' }}>
-            <span style={{ color: 'var(--text-primary)' }}>AAPL</span>
-            <span style={{ color: 'var(--accent-red)' }}>-0.82% ↘</span>
-          </div>
-          <div onClick={() => onSearch('TSLA')} style={{ border: '1px solid var(--border)', padding: '6px 12px', display: 'flex', gap: '8px', cursor: 'pointer' }}>
-            <span style={{ color: 'var(--text-primary)' }}>TSLA</span>
-            <span style={{ color: 'var(--accent-green)' }}>+1.15% ↗</span>
-          </div>
+          {['NVDA', 'AAPL', 'TSLA', 'MSFT', 'GOOGL'].map(t => (
+            <div key={t} onClick={() => onSearch(t)} style={{ border: '1px solid var(--border)', padding: '6px 12px', cursor: 'pointer' }}>
+              <span style={{ color: 'var(--text-primary)' }}>{t}</span>
+            </div>
+          ))}
         </div>
       </div>
 

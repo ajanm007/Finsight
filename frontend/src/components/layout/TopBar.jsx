@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function TopBar({ ticker, onSearch, onOpenSettings }) {
+export default function TopBar({ ticker, onSearch, status, onOpenSettings, onOpenHelp }) {
   const [input, setInput] = useState('');
   const [time, setTime] = useState('');
 
@@ -46,15 +46,20 @@ export default function TopBar({ ticker, onSearch, onOpenSettings }) {
             <>
               <span style={{ color: 'var(--accent-amber)', borderBottom: '2px solid var(--accent-amber)', paddingBottom: '22px', marginBottom: '-22px' }}>{ticker}</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ width: '6px', height: '6px', backgroundColor: 'var(--accent-green)', borderRadius: '50%' }}></div>
-                V4.1_LIVE_{time}
+                <div style={{ width: '6px', height: '6px', backgroundColor: status === 'running' ? 'var(--accent-amber)' : status === 'error' ? 'var(--accent-red)' : 'var(--accent-green)', borderRadius: '50%' }}></div>
+                V4.1_{status === 'running' ? 'ANALYZING' : status === 'error' ? 'ERROR' : 'LIVE'}_{time}
               </span>
             </>
           )}
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '16px', color: 'var(--text-muted)' }}>
+      <div style={{ display: 'flex', gap: '16px', color: 'var(--text-muted)', alignItems: 'center' }}>
+        <span
+          style={{ cursor: 'pointer', fontSize: '13px', fontWeight: 'bold', border: '1px solid rgba(255,165,0,0.3)', borderRadius: '50%', width: '18px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-amber)', opacity: 0.7 }}
+          onClick={onOpenHelp}
+          title="Plain English Guide"
+        >?</span>
         <span style={{ cursor: 'pointer' }} onClick={onOpenSettings}>⚙</span>
         <span style={{ cursor: 'pointer' }}>👤</span>
       </div>

@@ -9,6 +9,7 @@ import SignalsView from './components/signals/SignalsView';
 import ReportsView from './components/reports/ReportsView';
 import EvalView from './components/eval/EvalView';
 import SettingsModal from './components/layout/SettingsModal';
+import HelpModal from './components/layout/HelpModal';
 import Login from './components/auth/Login';
 import { useAnalysis } from './hooks/useAnalysis';
 import { supabase } from './supabase';
@@ -20,6 +21,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeView, setActiveView] = useState('terminal'); // terminal, watchlist, signals, reports
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { status, toolStates, brief, error, startAnalysis } = useAnalysis();
   
   useEffect(() => {
@@ -120,24 +122,27 @@ function App() {
 
   return (
     <div className={`app-container ${sidebarCollapsed ? 'collapsed' : ''}`}>
-      <TopBar 
-        ticker={currentTicker} 
-        onSearch={handleSearch} 
-        status={status} 
+      <TopBar
+        ticker={currentTicker}
+        onSearch={handleSearch}
+        status={status}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenHelp={() => setHelpOpen(true)}
       />
-      <Sidebar 
-        collapsed={sidebarCollapsed} 
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         activeView={activeView}
         onViewChange={setActiveView}
         onLogout={handleLogout}
+        onOpenHelp={() => setHelpOpen(true)}
       />
       <main className="main-content">
         {renderContent()}
       </main>
       <StatusBar brief={brief} />
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
+      {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
     </div>
   );
 }

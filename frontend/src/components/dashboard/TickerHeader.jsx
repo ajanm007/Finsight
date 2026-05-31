@@ -36,8 +36,6 @@ export default function TickerHeader({ brief, priceData }) {
     const pctChange = (change / data[data.length - 2].close) * 100;
     isPositive = pctChange >= 0;
     pctChangeStr = `${isPositive ? '+' : ''}${pctChange.toFixed(2)}%`;
-  } else if (brief.ticker === 'NVDA') {
-    pctChangeStr = "+2.14%";
   }
 
   return (
@@ -56,9 +54,8 @@ export default function TickerHeader({ brief, priceData }) {
           </div>
         </div>
         <div style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'flex', gap: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{brief.ticker} CORP</span>
-          <span>|</span>
-          <span>NASDAQ_GS</span>
+          <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{brief.company_name || brief.ticker}</span>
+          {brief.exchange && <><span>|</span><span>{brief.exchange}</span></>}
           <span>|</span>
           <span style={{ color: 'var(--accent-amber)' }}>UPDATED {timeAgo}</span>
         </div>
