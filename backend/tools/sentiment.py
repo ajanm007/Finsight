@@ -25,6 +25,15 @@ def _get_pipeline():
     return _sentiment_pipeline
 
 
+def prewarm() -> None:
+    """Load FinBERT into memory. Call once at startup to avoid first-request delay."""
+    try:
+        _get_pipeline()
+        logger.info("[sentiment] FinBERT pre-warmed successfully")
+    except Exception as e:
+        logger.warning(f"[sentiment] Pre-warm failed (non-critical): {e}")
+
+
 def run_sentiment(articles: list[dict]) -> dict[str, Any]:
     """
     Score sentiment for a list of news articles using FinBERT.
@@ -49,20 +58,30 @@ def run_sentiment(articles: list[dict]) -> dict[str, Any]:
     try:
         pipe = _get_pipeline()
 
+        # Build text list, preserving article order
+        texts = []
+        valid_articles = []
+        for article in articles:
+            text = (article.get("snippet") or article.get("title", ""))[:512]
+            if text:
+                texts.append(text)
+                valid_articles.append(article)
+
+        if not texts:
+            return {
+                "per_article": [], "avg_score": 0.0, "bullish_count": 0,
+                "bearish_count": 0, "neutral_count": 0,
+                "overall_sentiment": "neutral", "status": "AVAILABLE",
+            }
+
+        # Batch inference — single forward pass for all articles
+        batch_results = pipe(texts, batch_size=8)
+
         per_article = []
         scores = []
 
-        for article in articles:
-            text = article.get("snippet") or article.get("title", "")
-            if not text:
-                continue
-
-            # Truncate to 512 chars for FinBERT
-            text = text[:512]
-
-            result = pipe(text)
-            # result is a list of lists: [[{label, score}, ...]]
-            label_scores = {item["label"]: item["score"] for item in result[0]}
+        for article, result in zip(valid_articles, batch_results):
+            label_scores = {item["label"]: item["score"] for item in result}
 
             positive = label_scores.get("positive", 0)
             negative = label_scores.get("negative", 0)
