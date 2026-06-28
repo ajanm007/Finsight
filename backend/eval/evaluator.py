@@ -80,8 +80,10 @@ def evaluate_pending_briefs() -> dict:
                 
             else:
                 is_correct = 0
-                if (net_signal == "bullish" and pct_change > 0) or \
-                   (net_signal == "bearish" and pct_change < 0):
+                is_bullish = "bull" in net_signal
+                is_bearish = "bear" in net_signal
+                if (is_bullish and pct_change > 0) or \
+                   (is_bearish and pct_change < 0):
                     is_correct = 1
                     
                 update_brief_eval(brief_id, current_price, is_correct, "evaluated")
