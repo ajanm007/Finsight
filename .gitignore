@@ -29,9 +29,12 @@ skills-lock.json
 
 # Scratch / temp files
 backend/scratch_test.py
+backend/tests/TODO.md
 
 # Misc
 .DS_Store
 *.log
 .pytest_cache/
 Finsight_PRD_v1_2.md
+*.png
+.
