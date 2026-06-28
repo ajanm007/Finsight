@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE, getAuthHeaders } from '../api/client';
 
 export function useBriefHistory() {
   const [briefs, setBriefs] = useState([]);
@@ -8,7 +9,9 @@ export function useBriefHistory() {
   const fetchHistory = useCallback(async (limit = 50) => {
     setLoading(true);
     try {
-      const response = await fetch(`/briefs/history?limit=${limit}`);
+      const response = await fetch(`${API_BASE}/briefs/history?limit=${limit}`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Failed to fetch brief history');
       const data = await response.json();
       setBriefs(data);
@@ -22,7 +25,9 @@ export function useBriefHistory() {
   const fetchForTicker = async (ticker, limit = 20) => {
     setLoading(true);
     try {
-      const response = await fetch(`/briefs/${ticker}/all?limit=${limit}`);
+      const response = await fetch(`${API_BASE}/briefs/${ticker}/all?limit=${limit}`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error(`Failed to fetch history for ${ticker}`);
       const data = await response.json();
       return data;
@@ -36,7 +41,9 @@ export function useBriefHistory() {
 
   const fetchById = async (id) => {
     try {
-      const response = await fetch(`/briefs/id/${id}`);
+      const response = await fetch(`${API_BASE}/briefs/id/${id}`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Brief not found');
       return await response.json();
     } catch (err) {

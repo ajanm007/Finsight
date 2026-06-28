@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { API_BASE, getAccessToken } from '../api/client';
 
 export function useAnalysis() {
   const [status, setStatus] = useState('idle'); // idle, connecting, running, done, error
@@ -26,43 +27,76 @@ export function useAnalysis() {
       fetch_sec_filing: { state: 'pending' },
     });
 
-    const url = `/stream/${ticker}${refresh ? '?refresh=true' : ''}`;
-    const eventSource = new EventSource(url);
+    let eventSource = null;
+    let cancelled = false;
 
-    eventSource.addEventListener('status', (e) => {
-      setStatus('running');
-      const data = JSON.parse(e.data);
-      setToolStates((prev) => ({
-        ...prev,
-        [data.tool]: {
-          state: data.state, // pending, running, done, failed
-          status: data.status, // AVAILABLE, CACHED, UNAVAILABLE
-          latency_ms: data.latency_ms,
-          error: data.error,
-          result: data.result // Incremental data for live updates
+    // Token must be retrieved before opening the stream. EventSource cannot
+    // send headers, so the Supabase access token is passed as a query param.
+    (async () => {
+      const token = await getAccessToken();
+      if (cancelled) return;
+
+      const params = new URLSearchParams();
+      if (refresh) params.set('refresh', 'true');
+      if (token) params.set('token', token);
+      const query = params.toString();
+      const url = `${API_BASE}/stream/${ticker}${query ? `?${query}` : ''}`;
+      eventSource = new EventSource(url);
+
+      eventSource.addEventListener('status', (e) => {
+        setStatus('running');
+        const data = JSON.parse(e.data);
+        setToolStates((prev) => ({
+          ...prev,
+          [data.tool]: {
+            state: data.state, // pending, running, done, failed
+            status: data.status, // AVAILABLE, CACHED, UNAVAILABLE
+            latency_ms: data.latency_ms,
+            error: data.error,
+            result: data.result // Incremental data for live updates
+          }
+        }));
+      });
+
+      eventSource.addEventListener('brief', (e) => {
+        const parsed = JSON.parse(e.data);
+        setBrief(parsed.data);
+      });
+
+      eventSource.addEventListener('error', (e) => {
+        // Application-level error event from the backend (e.g. invalid ticker, 401 auth).
+        // Distinct from the connection-level onerror handler below.
+        try {
+          const data = JSON.parse(e.data);
+          if (data && data.message) {
+            setError(data.message);
+            setStatus('error');
+            eventSource.close();
+          }
+        } catch {
+          // Not a JSON payload — let onerror handle transport failures.
         }
-      }));
-    });
+      });
 
-    eventSource.addEventListener('brief', (e) => {
-      const parsed = JSON.parse(e.data);
-      setBrief(parsed.data);
-    });
+      eventSource.addEventListener('done', () => {
+        setStatus((prev) => (prev === 'error' ? prev : 'done'));
+        eventSource.close();
+      });
 
-    eventSource.addEventListener('done', () => {
-      setStatus('done');
-      eventSource.close();
-    });
+      eventSource.onerror = (err) => {
+        console.error("SSE Error:", err);
+        // Only set error if we haven't received a brief yet. A 401 (logged out /
+        // expired token) surfaces here as a connection failure, not a silent hang.
+        setStatus(prev => prev === 'running' || prev === 'connecting' ? 'error' : prev);
+        setError("Connection to analysis stream lost.");
+        eventSource.close();
+      };
+    })();
 
-    eventSource.onerror = (err) => {
-      console.error("SSE Error:", err);
-      // Only set error if we haven't received a brief yet
-      setStatus(prev => prev === 'running' || prev === 'connecting' ? 'error' : prev);
-      setError("Connection to analysis stream lost.");
-      eventSource.close();
+    return () => {
+      cancelled = true;
+      if (eventSource) eventSource.close();
     };
-
-    return () => eventSource.close();
   }, []);
 
   return { status, toolStates, brief, error, startAnalysis };

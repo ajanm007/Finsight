@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE, getAuthHeaders } from '../api/client';
 
 export function useEvalData() {
   const [stats, setStats] = useState(null);
@@ -9,9 +10,10 @@ export function useEvalData() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const authHeaders = await getAuthHeaders();
       const [statsRes, detailsRes] = await Promise.all([
-        fetch('http://localhost:8000/eval/leaderboard'),
-        fetch('http://localhost:8000/eval/details')
+        fetch(`${API_BASE}/eval/leaderboard`, { headers: { ...authHeaders } }),
+        fetch(`${API_BASE}/eval/details`, { headers: { ...authHeaders } })
       ]);
 
       if (!statsRes.ok || !detailsRes.ok) throw new Error('NETWORK_UPLINK_FAILURE');
@@ -32,7 +34,10 @@ export function useEvalData() {
 
   const runEval = async () => {
     try {
-      await fetch('http://localhost:8000/eval/run', { method: 'POST' });
+      await fetch(`${API_BASE}/eval/run`, {
+        method: 'POST',
+        headers: { ...(await getAuthHeaders()) },
+      });
       await fetchData();
     } catch (err) {
       console.error('Manual eval trigger failed:', err);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE, getAuthHeaders } from '../api/client';
 
 export function useWatchlist() {
   const [watchlist, setWatchlist] = useState([]);
@@ -8,7 +9,9 @@ export function useWatchlist() {
   const fetchWatchlist = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch('/watchlist');
+      const response = await fetch(`${API_BASE}/watchlist`, {
+        headers: { ...(await getAuthHeaders()) },
+      });
       if (!response.ok) throw new Error('Failed to fetch watchlist');
       const data = await response.json();
       setWatchlist(data);
@@ -21,9 +24,9 @@ export function useWatchlist() {
 
   const addTicker = async (ticker, notes = "") => {
     try {
-      const response = await fetch('/watchlist', {
+      const response = await fetch(`${API_BASE}/watchlist`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         body: JSON.stringify({ ticker, notes }),
       });
       if (!response.ok) throw new Error('Failed to add ticker');
@@ -37,8 +40,9 @@ export function useWatchlist() {
 
   const removeTicker = async (ticker) => {
     try {
-      const response = await fetch(`/watchlist/${ticker}`, {
+      const response = await fetch(`${API_BASE}/watchlist/${ticker}`, {
         method: 'DELETE',
+        headers: { ...(await getAuthHeaders()) },
       });
       if (!response.ok) throw new Error('Failed to remove ticker');
       // Optimistic update
@@ -52,9 +56,9 @@ export function useWatchlist() {
 
   const updateNotes = async (ticker, notes) => {
     try {
-      const response = await fetch(`/watchlist/${ticker}`, {
+      const response = await fetch(`${API_BASE}/watchlist/${ticker}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         body: JSON.stringify({ notes }),
       });
       if (!response.ok) throw new Error('Failed to update notes');
@@ -79,9 +83,9 @@ export function useWatchlist() {
     setWatchlist(ordered);
 
     try {
-      const response = await fetch('/watchlist/reorder', {
+      const response = await fetch(`${API_BASE}/watchlist/reorder`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await getAuthHeaders()) },
         body: JSON.stringify({ ticker_orders: tickerOrders }),
       });
       if (!response.ok) throw new Error('Failed to reorder watchlist');
