@@ -89,7 +89,7 @@ function App() {
   if (!currentTicker) {
     return (
       <>
-        <Landing onSearch={handleSearch} />
+        <Landing onSearch={handleSearch} onLogout={handleLogout} />
         {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
       </>
     );

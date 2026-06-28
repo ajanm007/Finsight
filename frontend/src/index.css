@@ -3,16 +3,35 @@
   --bg-secondary: #111720;
   --bg-sidebar: #0d1117;
   --border: #1e2a3a;
-  
+
   --text-primary: #c5cdd8;
   --text-muted: #5a6577;
-  
+
   --accent-amber: #e8a838;
   --accent-green: #2ecc71;
   --accent-red: #e74c3c;
   --accent-orange: #d4861a;
   --accent-blue: #3498db;
-  
+
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-display: 'Orbitron', sans-serif;
+}
+
+[data-theme="midnight"] {
+  --bg-primary: #060c18;
+  --bg-secondary: #0c1628;
+  --bg-sidebar: #08101e;
+  --border: #152035;
+
+  --text-primary: #b8cce0;
+  --text-muted: #3d5878;
+
+  --accent-amber: #e8a838;
+  --accent-green: #2ecc71;
+  --accent-red: #e74c3c;
+  --accent-orange: #d4861a;
+  --accent-blue: #4aa8e8;
+
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   --font-display: 'Orbitron', sans-serif;
 }
@@ -203,44 +222,87 @@ input:focus {
 }
 
 /* Watchlist Grid */
+@keyframes cardEntrance {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scanDown {
+  0%   { top: -2px; opacity: 0.85; }
+  85%  { opacity: 0.85; }
+  100% { top: calc(100% + 2px); opacity: 0; }
+}
+
+@keyframes freshPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
+  50%       { opacity: 0.6; box-shadow: 0 0 4px 2px currentColor; }
+}
+
 .watchlist-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 24px;
+  gap: 20px;
 }
 
 .watchlist-card {
   border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
   background-color: var(--bg-secondary);
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, transform 0.25s, box-shadow 0.25s,
+              border-top-color 0.2s, border-right-color 0.2s, border-bottom-color 0.2s;
   position: relative;
+  overflow: hidden;
+  animation: cardEntrance 0.45s ease-out both;
 }
 
+.watchlist-card.bullish { border-left-color: var(--accent-green); }
+.watchlist-card.bearish { border-left-color: var(--accent-red); }
+.watchlist-card.neutral { border-left-color: var(--accent-amber); }
+
 .watchlist-card:hover {
-  border-color: var(--accent-amber);
-  background-color: rgba(232, 168, 56, 0.05);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  border-top-color: var(--accent-amber);
+  border-right-color: var(--accent-amber);
+  border-bottom-color: var(--accent-amber);
+  background-color: rgba(232, 168, 56, 0.04);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(232, 168, 56, 0.08);
 }
 
 .watchlist-card.edit-mode {
   border-style: dashed;
+  border-left-style: dashed;
   cursor: grab;
 }
 
-.watchlist-card.edit-mode:active {
-  cursor: grabbing;
-}
+.watchlist-card.edit-mode:active { cursor: grabbing; }
 
 .watchlist-card.edit-mode:hover {
   background-color: rgba(232, 168, 56, 0.08);
 }
 
+/* Scan line that sweeps down on hover */
+.card-scan-line {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--accent-amber) 50%, transparent 100%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.watchlist-card:hover .card-scan-line {
+  animation: scanDown 0.65s ease-out forwards;
+}
+
+/* Drag handle */
 .drag-handle {
   position: absolute;
   top: 12px;
@@ -249,6 +311,7 @@ input:focus {
   font-size: 14px;
   user-select: none;
   opacity: 0.5;
+  transition: opacity 0.2s, color 0.2s;
 }
 
 .watchlist-card:hover .drag-handle {
@@ -256,17 +319,21 @@ input:focus {
   color: var(--accent-amber);
 }
 
+/* Remove button (shown on hover) */
 .watchlist-card .remove-btn {
   position: absolute;
   top: 12px;
   right: 12px;
   background: none;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 4px;
+  padding: 3px 7px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  font-family: var(--font-mono);
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, color 0.15s, border-color 0.15s;
   z-index: 10;
 }
 
@@ -276,6 +343,170 @@ input:focus {
 
 .watchlist-card .remove-btn:hover {
   color: var(--accent-red);
+  border-color: var(--accent-red);
+}
+
+/* WatchlistCard internals */
+.wc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-right: 64px; /* avoid remove-btn overlap */
+}
+
+.wc-ticker {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.wc-freshness {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  font-family: var(--font-mono);
+}
+
+.wc-fresh-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.wc-fresh-dot.pulsing {
+  animation: freshPulse 2s ease-in-out infinite;
+}
+
+.wc-divider {
+  height: 1px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.wc-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.wc-label {
+  font-size: 8px;
+  color: var(--text-muted);
+  letter-spacing: 1.5px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+
+.wc-price {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--text-primary);
+  letter-spacing: 1px;
+}
+
+.wc-verdict {
+  font-size: 12px;
+  font-weight: bold;
+  letter-spacing: 1.5px;
+  font-family: var(--font-mono);
+}
+
+.wc-bar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.wc-bar-value {
+  font-size: 10px;
+  font-weight: bold;
+  font-family: var(--font-mono);
+}
+
+.wc-bar-track {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  position: relative;
+}
+
+.wc-bar-fill {
+  height: 100%;
+  transition: width 0.9s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.wc-notes {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid transparent;
+  color: var(--text-primary);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 6px 8px;
+  resize: none;
+  height: 44px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.wc-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* Watchlist header stats */
+.watchlist-stats {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.watchlist-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 1px;
+}
+
+.watchlist-stat-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+}
+
+/* Watchlist empty state */
+.watchlist-empty {
+  border: 1px dashed var(--border);
+  padding: 72px 48px;
+  text-align: center;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.watchlist-empty-ascii {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.6;
+  color: rgba(90, 101, 119, 0.4);
+  letter-spacing: 2px;
 }
 
 /* Signal Feed */
@@ -287,6 +518,8 @@ input:focus {
 }
 
 .signal-card {
+  position: relative;
+  overflow: hidden;
   padding: 16px;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border);
@@ -294,11 +527,108 @@ input:focus {
   display: flex;
   gap: 16px;
   align-items: flex-start;
+  transition: border-color 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+  animation: cardEntrance 0.4s ease-out both;
+}
+
+.signal-card:hover {
+  border-top-color: var(--accent-amber);
+  border-right-color: var(--accent-amber);
+  border-bottom-color: var(--accent-amber);
+  background-color: var(--bg-primary);
+  transform: translateX(2px);
 }
 
 .signal-card.bull { border-left-color: var(--accent-green); }
 .signal-card.bear { border-left-color: var(--accent-red); }
 .signal-card.conflict { border-left-color: var(--accent-amber); }
+
+/* Amber scan line sweep on hover */
+.signal-scanline {
+  position: absolute;
+  left: 0; right: 0; top: -2px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-amber), transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+.signal-card:hover .signal-scanline {
+  animation: scanDown 0.65s ease-out forwards;
+}
+
+.signal-icon {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* Strength bar */
+.signal-strength-track {
+  flex: 1;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.signal-strength-fill {
+  height: 100%;
+  transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Source data chips */
+.signal-source-badge {
+  font-size: 8.5px;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+/* Stats summary line */
+.signal-stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.signal-stats-sep { opacity: 0.4; }
+
+/* Timeline day grouping */
+.signal-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.signal-group + .signal-group { margin-top: 20px; }
+
+.signal-group-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+}
+.signal-group-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.signal-group-count {
+  color: var(--accent-amber);
+  font-weight: bold;
+}
 
 /* Filter Bar */
 .filter-bar {

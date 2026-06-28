@@ -81,10 +81,10 @@ export default function TechIndicators({ toolResults }) {
             </Tooltip>
           </div>
           <div style={{ color: 'var(--text-primary)', fontSize: '24px', fontWeight: 'bold', fontFamily: 'var(--font-display)', marginBottom: '4px' }}>
-            {ma50 !== undefined ? `$${Number(ma50).toFixed(1)}` : '--'}
+            {ma50 ? `$${Number(ma50).toFixed(1)}` : '—'}
           </div>
           <div style={{ color: 'var(--text-muted)', fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            {tech.moving_averages?.price_vs_50ma || 'CALCULATING...'}
+            {ma50 ? (tech.moving_averages?.price_vs_50ma || 'CALCULATING...') : 'UNAVAILABLE'}
           </div>
         </div>
         
@@ -96,10 +96,10 @@ export default function TechIndicators({ toolResults }) {
             </Tooltip>
           </div>
           <div style={{ color: 'var(--text-primary)', fontSize: '24px', fontWeight: 'bold', fontFamily: 'var(--font-display)', marginBottom: '4px' }}>
-            {ma200 !== undefined ? `$${Number(ma200).toFixed(1)}` : '--'}
+            {ma200 ? `$${Number(ma200).toFixed(1)}` : '—'}
           </div>
           <div style={{ color: 'var(--text-muted)', fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase' }}>
-            {tech.moving_averages?.price_vs_200ma || 'CALCULATING...'}
+            {ma200 ? (tech.moving_averages?.price_vs_200ma || 'CALCULATING...') : 'UNAVAILABLE'}
           </div>
         </div>
         

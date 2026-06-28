@@ -29,15 +29,15 @@ export default function BullCaseScore({ score }) {
           <span style={{ color: getColor(width), fontSize: '16px', fontWeight: 'bold', fontFamily: 'var(--font-display)' }}>{width}%</span>
         </div>
         
-        <div style={{ width: '100%', height: '8px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
-          <div 
-            style={{ 
-              width: `${width}%`, 
-              height: '100%', 
+        <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+          <div
+            style={{
+              width: `${width}%`,
+              height: '100%',
               backgroundColor: getColor(width),
               transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: `0 0 10px ${getColor(width)}`
-            }} 
+              boxShadow: `0 0 10px ${getColor(width)}`,
+            }}
           />
         </div>
 

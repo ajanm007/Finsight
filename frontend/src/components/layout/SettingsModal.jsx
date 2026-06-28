@@ -1,11 +1,23 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE } from '../../api/client';
 
 export default function SettingsModal({ onClose }) {
   const [health, setHealth] = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem('finsight-theme') || 'sovereign');
 
   useEffect(() => {
-    fetch('/health').then(r => r.json()).then(setHealth);
+    fetch(`${API_BASE}/health`).then(r => r.json()).then(setHealth);
   }, []);
+
+  const applyTheme = (t) => {
+    setTheme(t);
+    localStorage.setItem('finsight-theme', t);
+    if (t === 'midnight') {
+      document.documentElement.setAttribute('data-theme', 'midnight');
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -37,8 +49,8 @@ export default function SettingsModal({ onClose }) {
           <section>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '12px', letterSpacing: '1px' }}>DISPLAY_THEME</div>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="filter-btn active" style={{ flex: 1 }}>SOVEREIGN_DARK</button>
-              <button className="filter-btn" style={{ flex: 1, opacity: 0.5, cursor: 'not-allowed' }}>MIDNIGHT_BLUE</button>
+              <button className={`filter-btn ${theme === 'sovereign' ? 'active' : ''}`} style={{ flex: 1 }} onClick={() => applyTheme('sovereign')}>SOVEREIGN_DARK</button>
+              <button className={`filter-btn ${theme === 'midnight' ? 'active' : ''}`} style={{ flex: 1 }} onClick={() => applyTheme('midnight')}>MIDNIGHT_BLUE</button>
             </div>
           </section>
 
