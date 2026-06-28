@@ -560,6 +560,24 @@ def _generate_fallback_brief(ticker: str, tool_results: dict) -> str:
 
 
 
+def _is_valid_ticker_price(price_result: dict) -> bool:
+    """
+    Decide whether a pre-fetched price result corresponds to a real ticker.
+
+    Invalid when the price status is not AVAILABLE/CACHED, OR there is no
+    usable current_price and no price data points (the shape returned by
+    fetch_price_data for delisted/unknown symbols).
+    """
+    if not isinstance(price_result, dict):
+        return False
+    status = price_result.get("status")
+    if status not in ("AVAILABLE", "CACHED"):
+        return False
+    has_price = price_result.get("current_price") is not None
+    has_data = bool(price_result.get("data"))
+    return has_price or has_data
+
+
 async def analyze_ticker(ticker: str, force_refresh: bool = False) -> dict[str, Any]:
     """
     Full analysis pipeline: select tools → execute → build brief.
@@ -582,6 +600,16 @@ async def analyze_ticker(ticker: str, force_refresh: bool = False) -> dict[str, 
         loop.run_in_executor(None, _run_tool, "fetch_price_data", ticker, {}, force_refresh),
     )
     logger.info(f"[router] Analyzing {ticker} with tools: {tools}")
+
+    # Validation gate: if the pre-fetched price indicates an invalid/unknown
+    # ticker, short-circuit before running the rest of the pipeline.
+    if not _is_valid_ticker_price(price_prefetch[1]):
+        logger.info(f"[router] '{ticker}' rejected as invalid ticker (no usable price data)")
+        return {
+            "error": "invalid_ticker",
+            "ticker": ticker,
+            "message": f"'{ticker}' does not appear to be a valid ticker symbol.",
+        }
 
     # Step 2: Execute tools in parallel, injecting pre-fetched price result
     tool_results = await execute_tools(ticker, tools, force_refresh=force_refresh)
@@ -1292,6 +1320,15 @@ async def analyze_ticker_streaming(
         else:
             await queue.put({"type": "status", "tool": "fetch_price_data", "state": "failed",
                              "error": str(_price_result.get("error", "Unknown"))})
+
+        # Validation gate: if the pre-fetched price indicates an invalid/unknown
+        # ticker, emit an error event and close the stream before running the
+        # rest of the pipeline (price event has already been emitted above).
+        if not _is_valid_ticker_price(_price_result):
+            logger.info(f"[stream] '{ticker}' rejected as invalid ticker (no usable price data)")
+            await queue.put({"type": "error", "message": f"'{ticker}' does not appear to be a valid ticker symbol."})
+            await queue.put({"type": "done"})
+            return
 
         logger.info(f"[stream] Analyzing {ticker} with tools: {tools}")
         results = {"fetch_price_data": _price_result}

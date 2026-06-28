@@ -14,8 +14,9 @@ load_dotenv(BASE_DIR / ".env")
 class Settings(BaseSettings):
     """App settings loaded from .env file."""
 
-    # LLM provider: "local" or "groq"
-    LLM_PROVIDER: str = Field(default="local", description="LLM provider: 'local' or 'groq'")
+    # LLM provider: "gemini" (default), "groq", "fallback", or "local".
+    # NOTE: "local" requires HF_TOKEN + a GPU and is opt-in — do not set it without that hardware.
+    LLM_PROVIDER: str = Field(default="gemini", description="LLM provider: 'gemini', 'groq', 'fallback', or 'local'")
     GROQ_API_KEY: str = Field(default="", description="Groq API key (only if LLM_PROVIDER=groq)")
     GEMINI_API_KEY: str = Field(default="", description="Gemini API key")
     LOCAL_MODEL_NAME: str = Field(
@@ -38,10 +39,25 @@ class Settings(BaseSettings):
     # Database
     DB_PATH: str = Field(default=str(BASE_DIR / "data" / "finsight.db"), description="SQLite DB path")
 
-    # CORS
+    # CORS — comma-separated origins in .env (e.g. "https://app.example.com,https://x.vercel.app")
     ALLOWED_ORIGINS: list[str] = Field(
         default=["*"],
         description="Allowed CORS origins"
+    )
+
+    # Auth — Supabase JWT secret (Project Settings → API → JWT Secret).
+    # When set, all data endpoints require a valid Supabase bearer token.
+    # When empty (local dev), auth is DISABLED and endpoints are open.
+    SUPABASE_JWT_SECRET: str = Field(
+        default="",
+        description="Supabase JWT secret; enables API auth enforcement when set",
+    )
+
+    # Local-dev escape hatch: when True, all auth is bypassed even without a JWT secret.
+    # When False and SUPABASE_JWT_SECRET is empty, protected routes fail closed (503).
+    AUTH_DISABLED: bool = Field(
+        default=False,
+        description="Bypass JWT auth entirely (local dev only)",
     )
 
     model_config = {"env_file": str(BASE_DIR / ".env"), "env_file_encoding": "utf-8"}
