@@ -60,6 +60,13 @@ class Settings(BaseSettings):
         description="Bypass JWT auth entirely (local dev only)",
     )
 
+    # Rate limit for the expensive analysis endpoints (/analyze, /stream), per client IP.
+    # Guards free-tier API quotas (Finnhub/Tavily) and the SEC user-agent from request floods.
+    ANALYZE_RATE_LIMIT: str = Field(
+        default="10/minute",
+        description="slowapi rate limit string for /analyze and /stream, per IP",
+    )
+
     model_config = {"env_file": str(BASE_DIR / ".env"), "env_file_encoding": "utf-8"}
 
 

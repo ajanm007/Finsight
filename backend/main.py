@@ -11,10 +11,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from agent.router import analyze_ticker, analyze_ticker_streaming
 from cache.store import (
@@ -60,6 +63,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate limiting — per client IP, in-memory. In-memory is correct for the single-worker
+# deployment SQLite requires; switch to a Redis storage_uri if scaling to multiple workers.
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 # ---------- Request / Response Models ----------
 
@@ -99,22 +108,23 @@ async def root():
 
 
 @app.post("/analyze")
-async def analyze(request: AnalyzeRequest, _claims: dict = Depends(require_auth)):
+@limiter.limit(settings.ANALYZE_RATE_LIMIT)
+async def analyze(request: Request, payload: AnalyzeRequest, _claims: dict = Depends(require_auth)):
     """
     Main endpoint — runs the full agent pipeline on a ticker.
 
     Returns a structured Bull vs Bear brief with confidence scoring
     and conflict detection.
     """
-    ticker = request.ticker.strip().upper()
+    ticker = payload.ticker.strip().upper()
 
     if not ticker or len(ticker) > 10:
         raise HTTPException(status_code=400, detail="Invalid ticker symbol")
 
-    logger.info(f"=== Analyzing {ticker} (refresh={request.refresh}) ===")
+    logger.info(f"=== Analyzing {ticker} (refresh={payload.refresh}) ===")
 
     try:
-        brief = await analyze_ticker(ticker, force_refresh=request.refresh)
+        brief = await analyze_ticker(ticker, force_refresh=payload.refresh)
         if isinstance(brief, dict) and brief.get("error") == "invalid_ticker":
             raise HTTPException(status_code=404, detail=brief.get("message"))
         return brief
@@ -253,7 +263,18 @@ async def startup_event():
     loop = asyncio.get_running_loop()
     loop.run_in_executor(None, _prewarm_finbert)
 
-    # Auto-evaluate briefs on startup
+    # Auto-evaluate briefs off the event loop so a slow re-grade (network + sqlite
+    # per brief) doesn't block the server from accepting connections at boot.
+    loop.run_in_executor(None, _run_startup_evaluation)
+
+
+def _prewarm_finbert():
+    from tools.sentiment import prewarm
+    prewarm()
+
+
+def _run_startup_evaluation():
+    """Re-grade pending briefs in a worker thread (called off the event loop)."""
     from eval.evaluator import evaluate_pending_briefs
     logger.info("[startup] Running automated signal evaluation...")
     try:
@@ -261,11 +282,6 @@ async def startup_event():
         logger.info(f"[startup] Evaluation complete: {stats}")
     except Exception as e:
         logger.error(f"[startup] Automated evaluation failed: {e}")
-
-
-def _prewarm_finbert():
-    from tools.sentiment import prewarm
-    prewarm()
 
 
 # ---------- Symbol Search Endpoint ----------
@@ -321,7 +337,8 @@ async def search_symbols(q: str = Query(default="", max_length=50), _claims: dic
 
 
 @app.get("/stream/{ticker}")
-async def stream_analysis(ticker: str, refresh: bool = False, token: str | None = None):
+@limiter.limit(settings.ANALYZE_RATE_LIMIT)
+async def stream_analysis(request: Request, ticker: str, refresh: bool = False, token: str | None = None):
     """
     SSE streaming endpoint — live tool status updates.
 
