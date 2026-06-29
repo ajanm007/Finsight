@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function DataBadge({ status }) {
   if (!status) return null;
   

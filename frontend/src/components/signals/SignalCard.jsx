@@ -1,5 +1,3 @@
-import React from 'react';
-
 const TYPE_META = {
   bull:     { icon: '▲', color: 'var(--accent-green)', label: 'BULL' },
   bear:     { icon: '▼', color: 'var(--accent-red)',   label: 'BEAR' },

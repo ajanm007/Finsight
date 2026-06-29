@@ -1,5 +1,3 @@
-import React from 'react';
-
 export default function Sidebar({ collapsed, onToggle, activeView, onViewChange, onLogout, onOpenHelp }) {
   const NavItem = ({ id, label, icon, disabled = false }) => {
     const active = activeView === id;

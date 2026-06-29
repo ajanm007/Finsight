@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSymbolSearch } from '../../hooks/useSymbolSearch';
 
 export default function TopBar({ ticker, onSearch, status, onOpenSettings, onOpenHelp }) {

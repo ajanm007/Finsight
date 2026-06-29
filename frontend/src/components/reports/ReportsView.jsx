@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useBriefHistory } from '../../hooks/useBriefHistory';
 import { generateMarkdown, downloadFile } from '../../utils/markdownExport';
 import { printReport } from '../../utils/printReport';
@@ -17,7 +17,7 @@ export default function ReportsView() {
   const [compareIds, setCompareIds]       = useState(new Set());
   const [printLog, setPrintLog]           = useState(() => {
     try { return JSON.parse(localStorage.getItem('finsight_print_log') || '{}'); }
-    catch (_) { return {}; }
+    catch { return {}; }
   });
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function ReportsView() {
   const handlePrint = () => {
     printReport(fullBrief);
     setTimeout(() => {
-      try { setPrintLog(JSON.parse(localStorage.getItem('finsight_print_log') || '{}')); } catch (_) {}
+      try { setPrintLog(JSON.parse(localStorage.getItem('finsight_print_log') || '{}')); } catch { /* ignore */ }
     }, 200);
   };
 

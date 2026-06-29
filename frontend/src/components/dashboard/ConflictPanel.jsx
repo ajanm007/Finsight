@@ -1,4 +1,3 @@
-import React from 'react';
 import Tooltip from '../common/Tooltip';
 
 export default function ConflictPanel({ conflicts }) {

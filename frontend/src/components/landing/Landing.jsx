@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import TutorialModal from './TutorialModal';
 import { API_BASE } from '../../api/client';
 import { useSymbolSearch } from '../../hooks/useSymbolSearch';
@@ -30,7 +30,6 @@ const PIPELINE = [
   { label: 'SIGNAL DETECTOR', status: 'ACTIVE', ok: true },
 ];
 
-const HEX_CHARS = '0123456789ABCDEF';
 const DATA_CHARS = '01アイウエオ∑∂∇∈≈×÷';
 
 function useDataStreams(count = 8) {
@@ -110,7 +109,6 @@ export default function Landing({ onSearch, onLogout }) {
   const glitching = useGlitch(8000);
   const displayCount = useCounter(analysisCount, 1400);
   const streams = useDataStreams(8);
-  const stripRef = useRef(null);
 
   useEffect(() => {
     setTimeout(() => setMounted(true), 50);

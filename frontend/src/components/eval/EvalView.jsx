@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useEvalData } from '../../hooks/useEvalData';
 import './eval.css';
 
