@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { extractSynthesis } from '../../utils/synthesis';
 
 function SynthesisPanel({ text }) {
@@ -47,7 +47,6 @@ import ConfidenceGauge from './ConfidenceGauge';
 import TechIndicators from './TechIndicators';
 import PriceChart from './PriceChart';
 import InfraHealth from './InfraHealth';
-import { useAnalysis } from '../../hooks/useAnalysis';
 import Tooltip from '../common/Tooltip';
 import PipelineLoader from './PipelineLoaderCinematic';
 

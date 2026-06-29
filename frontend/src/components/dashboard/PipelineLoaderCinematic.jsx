@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const TOOLS = [
   { id: 'fetch_price_data',   label: 'FETCHING PRICE & VOLUME DATA',   sub: 'YFINANCE' },

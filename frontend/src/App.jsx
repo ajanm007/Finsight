@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Landing from './components/landing/Landing';
 import Sidebar from './components/layout/Sidebar';
 import TopBar from './components/layout/TopBar';
@@ -16,7 +16,7 @@ import { supabase } from './supabase';
 
 function App() {
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [session, setSession] = useState(null);
+  const [, setSession] = useState(null);
   const [currentTicker, setCurrentTicker] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeView, setActiveView] = useState('terminal'); // terminal, watchlist, signals, reports

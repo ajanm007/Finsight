@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import DataBadge from '../common/DataBadge';
 
 function SignalCard({ signal, color, icon }) {

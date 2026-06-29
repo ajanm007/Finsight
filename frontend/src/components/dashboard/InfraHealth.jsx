@@ -1,5 +1,3 @@
-import React from 'react';
-
 const TOOLS = [
   { id: 'fetch_price_data', label: 'YFINANCE' },
   { id: 'fetch_news', label: 'TAVILY NEWS' },
@@ -27,8 +25,8 @@ export default function InfraHealth({ toolStates, brief, hideTitle }) {
           // If we have a brief, use the final status from data_availability
           // Otherwise, use the live SSE state
           let state = 'idle';
-          let status = '';
-          let latency = 0;
+          let status;
+          let latency;
           let color = 'var(--text-muted)';
           let textStr = '';
           

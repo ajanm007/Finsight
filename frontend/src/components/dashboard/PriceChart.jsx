@@ -1,8 +1,7 @@
-import React from 'react';
-import { BarChart, Bar, ResponsiveContainer, YAxis, XAxis, Cell } from 'recharts';
+import { BarChart, Bar, ResponsiveContainer, YAxis, Cell } from 'recharts';
 
 export default function PriceChart({ toolResults }) {
-  let data = [];
+  let data;
   const priceData = toolResults?.fetch_price_data?.data;
   
   if (!priceData) {

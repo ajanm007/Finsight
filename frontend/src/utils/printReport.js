@@ -418,7 +418,7 @@ export function printReport(fullBrief) {
     const log = JSON.parse(localStorage.getItem('finsight_print_log') || '{}');
     log[fullBrief.id] = { ticker: fullBrief.ticker, ts: Date.now() };
     localStorage.setItem('finsight_print_log', JSON.stringify(log));
-  } catch (_) {}
+  } catch { /* ignore */ }
 
   const win = window.open('', '_blank', 'width=900,height=700');
   win.document.open();
@@ -432,7 +432,7 @@ export function printReport(fullBrief) {
 export function getPrintLog() {
   try {
     return JSON.parse(localStorage.getItem('finsight_print_log') || '{}');
-  } catch (_) {
+  } catch {
     return {};
   }
 }
