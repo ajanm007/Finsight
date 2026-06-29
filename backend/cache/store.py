@@ -15,13 +15,14 @@ from config import CACHE_TTL, settings
 
 logger = logging.getLogger(__name__)
 
+# Tracks which DB paths have had their schema created/migrated this process, so
+# DDL + migrations run once per path rather than on every connection. Keyed by
+# path (not a bare bool) so per-test temp databases still initialize correctly.
+_initialized_paths: set[str] = set()
 
-def _get_db() -> sqlite3.Connection:
-    """Get or create the SQLite connection."""
-    db_path = Path(settings.DB_PATH)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
+
+def _init_db(conn: sqlite3.Connection) -> None:
+    """Create tables and run column migrations. Called once per DB path."""
     conn.execute("""
         CREATE TABLE IF NOT EXISTS cache (
             ticker TEXT NOT NULL,
@@ -54,18 +55,18 @@ def _get_db() -> sqlite3.Connection:
             sort_order INTEGER DEFAULT 0
         )
     """)
-    
+
     # Simple migration: add columns if they don't exist
     cursor = conn.execute("PRAGMA table_info(briefs)")
     columns = [row["name"] for row in cursor.fetchall()]
-    
+
     if "eval_status" not in columns:
         conn.execute("ALTER TABLE briefs ADD COLUMN eval_status TEXT DEFAULT 'pending'")
     if "price_5d_later" not in columns:
         conn.execute("ALTER TABLE briefs ADD COLUMN price_5d_later REAL")
     if "is_correct" not in columns:
         conn.execute("ALTER TABLE briefs ADD COLUMN is_correct INTEGER")
-        
+
     # Watchlist migrations
     cursor = conn.execute("PRAGMA table_info(watchlist)")
     watchlist_columns = [row["name"] for row in cursor.fetchall()]
@@ -73,6 +74,28 @@ def _get_db() -> sqlite3.Connection:
         conn.execute("ALTER TABLE watchlist ADD COLUMN sort_order INTEGER DEFAULT 0")
 
     conn.commit()
+
+
+def _get_db() -> sqlite3.Connection:
+    """Open a SQLite connection in WAL mode. Schema is initialized once per path.
+
+    WAL lets readers and writers run concurrently; busy_timeout makes a contended
+    write wait instead of immediately raising "database is locked". The schema DDL
+    only runs the first time a given DB path is seen this process.
+    """
+    db_path = Path(settings.DB_PATH)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    path_str = str(db_path)
+
+    conn = sqlite3.connect(path_str, timeout=5.0)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+
+    if path_str not in _initialized_paths:
+        _init_db(conn)
+        _initialized_paths.add(path_str)
+
     return conn
 
 
