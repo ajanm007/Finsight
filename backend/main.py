@@ -131,8 +131,10 @@ async def analyze(request: Request, payload: AnalyzeRequest, _claims: dict = Dep
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Analysis failed for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        # Log the real error server-side; return a generic message so internal
+        # details (stack info, upstream API errors, paths) don't leak to clients.
+        logger.error(f"Analysis failed for {ticker}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Analysis failed due to an internal error.")
 
 
 @app.get("/brief/{ticker}")

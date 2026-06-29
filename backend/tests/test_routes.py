@@ -108,6 +108,18 @@ class TestAnalyze:
         monkeypatch.setattr(main, "analyze_ticker", boom)
         assert c.post("/analyze", json={"ticker": "AAPL"}).status_code == 500
 
+    def test_500_does_not_leak_exception_detail(self, client, monkeypatch):
+        # Internal error text must not reach the client.
+        c, main = client
+        async def boom(ticker, force_refresh=False):
+            raise RuntimeError("secret internal detail /srv/path/key=abc123")
+        monkeypatch.setattr(main, "analyze_ticker", boom)
+        r = c.post("/analyze", json={"ticker": "AAPL"})
+        assert r.status_code == 500
+        assert "secret internal detail" not in r.text
+        assert "abc123" not in r.text
+        assert r.json()["detail"] == "Analysis failed due to an internal error."
+
 
 # ---------- /brief/{ticker} ----------
 
