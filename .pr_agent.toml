@@ -1,0 +1,43 @@
+# Qodo Merge / PR-Agent configuration for FinSight.
+# Docs: https://qodo-merge-docs.qodo.ai/usage-guide/configuration_options/
+# Repo-level settings override the tool defaults; env vars in the workflow override these.
+
+[config]
+# Model to use. Default is an OpenAI model, driven by the OPENAI_KEY secret.
+# To use a different provider, set model + the matching key secret in the workflow
+# (e.g. model = "gemini/gemini-2.0-flash" with GOOGLE_AI_STUDIO_KEY).
+model = "gpt-4o"
+fallback_models = ["gpt-4o-mini"]
+# Keep the bot quiet unless it has something to say.
+publish_output = true
+verbosity_level = 1
+
+[pr_reviewer]
+# Focus review on correctness/security/tests — the repo is Python + React.
+require_score_review = false
+require_tests_review = true
+require_security_review = true
+# Don't nag about PR size; feature branches here are intentionally scoped.
+enable_review_labels_effort = true
+enable_review_labels_security = true
+# Inline code suggestions live in /improve, not /review — avoid duplication.
+num_code_suggestions = 0
+# Extra guidance the reviewer applies to every PR (repo conventions).
+extra_instructions = """\
+Backend is FastAPI (Python 3.11), single-worker, SQLite/WAL + in-memory rate limiter — \
+flag anything that assumes multiple workers or a shared cache. Tools return a status dict \
+with 'AVAILABLE'/'UNAVAILABLE'; changes must preserve that contract and the downstream \
+dict shape. Never surface exception detail to clients in 5xx responses. Frontend is \
+React + Vite; there are no frontend tests yet, so call out risky runtime changes. \
+"""
+
+[pr_description]
+# Generate a clean summary + walkthrough; keep the original PR body if the author wrote one.
+publish_labels = true
+add_original_user_description = true
+generate_ai_title = false
+
+[pr_code_suggestions]
+# /improve — concrete, committable suggestions. Cap to keep signal high.
+num_code_suggestions = 6
+suggestions_score_threshold = 6
