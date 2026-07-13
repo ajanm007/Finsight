@@ -1,22 +1,28 @@
-fastapi>=0.110.0
-uvicorn>=0.27.0
-yfinance>=0.2.36
-ta>=0.11.0
-tavily-python>=0.3.0
-transformers>=4.38.0
-torch>=2.1.0
-accelerate>=0.27.0
-pydantic>=2.6.0
-pydantic-settings>=2.1.0
-python-dotenv>=1.0.0
-httpx>=0.27.0
-pytest>=8.0.0
-pytest-asyncio>=0.23.0
-langchain-groq>=0.1.0
-langchain-google-genai>=2.0.0
+# FinSight backend dependencies.
+# Pinned with ~= (compatible-release): allows patch/minor updates, blocks
+# breaking majors. Floors match the versions CI and local dev run against
+# (captured 2026-07-14). torch is installed CPU-only from PyTorch's index in
+# CI (see .github/workflows/ci.yml) — the version here is the floor, not the source.
+
+fastapi~=0.135.0
+uvicorn~=0.42.0
+yfinance~=1.2.0
+ta~=0.11.0
+tavily-python~=0.7.0
+transformers~=5.8.0
+torch~=2.11.0
+accelerate~=0.27
+pydantic~=2.12.0
+pydantic-settings~=2.13.0
+python-dotenv~=1.1.0
+httpx~=0.28.0
+pytest~=9.0.0
+pytest-asyncio~=0.23
+langchain-groq~=0.1
+langchain-google-genai~=2.0
 PyJWT==2.10.1
-sse-starlette>=1.6.0
-slowapi>=0.1.9
-chromadb>=0.4.0
-sentence-transformers>=2.2.0
-nsepython>=0.4.0  # Add this line
+sse-starlette~=3.4.0
+slowapi~=0.1.10
+chromadb~=1.5.0
+sentence-transformers~=5.4.0
+nsepython~=2.97
