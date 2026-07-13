@@ -28,7 +28,24 @@ class Settings(BaseSettings):
     TAVILY_API_KEY: str = Field(default="", description="Tavily API key for news search")
     NEWSAPI_KEY: str = Field(default="", description="NewsAPI.org API key for supplementary news (free tier: 100 req/day)")
     FINNHUB_API_KEY: str = Field(default="", description="Finnhub API key (free tier: 60 req/min)")
-    HF_TOKEN: str = Field(default="", description="HuggingFace API token for gated models")
+    HF_TOKEN: str = Field(default="", description="HuggingFace API token for gated models + Inference API")
+
+    # Sentiment backend: "local" (default) loads FinBERT via transformers in-process
+    # (~2GB RAM); "api" calls the HuggingFace serverless Inference API instead, so the
+    # process stays small enough for low-RAM hosts (Render/Fly free tiers). "api"
+    # requires HF_TOKEN with the "Inference Providers" permission.
+    SENTIMENT_BACKEND: str = Field(
+        default="local",
+        description="FinBERT sentiment backend: 'local' (in-process) or 'api' (HF Inference API)",
+    )
+    HF_INFERENCE_MODEL: str = Field(
+        default="ProsusAI/finbert",
+        description="Model ID for the HF Inference API sentiment backend",
+    )
+    HF_INFERENCE_TIMEOUT: float = Field(
+        default=30.0,
+        description="Per-request timeout (seconds) for the HF Inference API sentiment backend",
+    )
 
     # SEC EDGAR
     SEC_USER_AGENT: str = Field(

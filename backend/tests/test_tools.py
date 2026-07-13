@@ -380,6 +380,39 @@ class TestSentiment:
         assert out["status"] == "UNAVAILABLE"
         assert out["overall_sentiment"] == "unknown"
 
+    def test_api_backend_maps_to_same_shape(self, monkeypatch):
+        """SENTIMENT_BACKEND=api goes through _get_api_pipeline and produces the
+        same aggregate dict as the local backend (no network — _classify_via_api
+        is stubbed)."""
+        import tools.sentiment as sent
+        monkeypatch.setattr(sent.settings, "SENTIMENT_BACKEND", "api")
+        monkeypatch.setattr(sent, "_sentiment_pipeline", None)  # force rebuild
+        # Stub the per-article HTTP call to return all-label scores (bearish).
+        monkeypatch.setattr(sent, "_classify_via_api", lambda text, client: [
+            {"label": "positive", "score": 0.05},
+            {"label": "negative", "score": 0.90},
+            {"label": "neutral", "score": 0.05},
+        ])
+        out = sent.run_sentiment([{"snippet": "missed earnings"}, {"snippet": "guidance cut"}])
+        assert out["status"] == "AVAILABLE"
+        assert out["overall_sentiment"] == "bearish"
+        assert out["bearish_count"] == 2
+        # Same per-article shape as the local path
+        assert out["per_article"][0]["label"] == "negative"
+        assert out["per_article"][0]["net_score"] == -0.85
+
+    def test_api_backend_error_unavailable(self, monkeypatch):
+        """An HF API error inside the api backend degrades to UNAVAILABLE."""
+        import tools.sentiment as sent
+        monkeypatch.setattr(sent.settings, "SENTIMENT_BACKEND", "api")
+        monkeypatch.setattr(sent, "_sentiment_pipeline", None)
+        def boom(text, client):
+            raise RuntimeError("HF Inference API error: model loading")
+        monkeypatch.setattr(sent, "_classify_via_api", boom)
+        out = sent.run_sentiment([{"snippet": "text"}])
+        assert out["status"] == "UNAVAILABLE"
+        assert out["overall_sentiment"] == "unknown"
+
 
 # ---------- sec_filing.py (CIK lookup mocked) ----------
 

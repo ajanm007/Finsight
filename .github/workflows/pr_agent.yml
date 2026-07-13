@@ -1,0 +1,42 @@
+name: Qodo PR Agent
+
+# Qodo Merge (open-source PR-Agent) auto-reviews pull requests.
+# On PR open it runs /describe (fills in a summary), /review (code review with
+# findings), and /improve (concrete suggestions). It also responds to slash
+# commands typed as PR comments, e.g. `/review`, `/ask "..."`, `/improve`.
+#
+# Requires ONE model key in repo secrets (Settings → Secrets and variables →
+# Actions). Set exactly one of:
+#   OPENAI_KEY   — OpenAI API key (default model path)
+#   or configure a different provider below (see the config.model overrides).
+# GITHUB_TOKEN is provided automatically by Actions — no setup needed.
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  pr_agent:
+    # Skip on comment events that aren't on a PR (issue_comment fires for issues too).
+    if: ${{ github.event_name != 'issue_comment' || github.event.issue.pull_request }}
+    runs-on: ubuntu-latest
+    name: Review
+    steps:
+      - name: PR Agent
+        uses: qodo-ai/pr-agent@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          # Auto-commands to run when a PR is opened.
+          github_action_config.auto_review: "true"
+          github_action_config.auto_describe: "true"
+          github_action_config.auto_improve: "true"
+          # Keep the bot from re-running its full suite on its own comments.
+          github_action_config.pr_actions: '["opened", "reopened", "ready_for_review"]'
