@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Local data — never bake the dev DB / vector store into the image
+data/
+*.db
+
+# Tests & scratch (not needed at runtime)
+tests/
+scratch/
+scratch_test.py
+agent/test.py
+
+# Secrets / env
+.env
+.env.*
+
+# Misc
+*.log
+.DS_Store

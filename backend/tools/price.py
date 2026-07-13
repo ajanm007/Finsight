@@ -12,6 +12,27 @@ logger = logging.getLogger(__name__)
 
 SOURCE_NAME = "price"
 
+# Number of attempts for the yfinance call. A single transient network blip
+# otherwise returns empty/raises and falsely flags a valid ticker as invalid
+# (the invalid-ticker gate keys off this result), so retry once on exception.
+_FETCH_ATTEMPTS = 2
+
+
+def _fetch_history_with_retry(ticker: str, period: str):
+    """Fetch yfinance history, retrying only on exception (not on empty data).
+
+    An empty DataFrame is a legitimate answer (delisted/invalid ticker) and is
+    returned as-is — only thrown exceptions (transient network/API errors) retry.
+    """
+    last_exc = None
+    for attempt in range(_FETCH_ATTEMPTS):
+        try:
+            return yf.Ticker(ticker).history(period=period)
+        except Exception as e:  # noqa: BLE001 — transient; retried then re-raised
+            last_exc = e
+            logger.warning(f"[price] Fetch attempt {attempt + 1} failed for {ticker}: {e}")
+    raise last_exc
+
 
 def fetch_price_data(ticker: str, period: str = "3mo", force_refresh: bool = False) -> dict[str, Any]:
     """
@@ -26,8 +47,7 @@ def fetch_price_data(ticker: str, period: str = "3mo", force_refresh: bool = Fal
             return cached
 
     try:
-        stock = yf.Ticker(ticker)
-        df = stock.history(period=period)
+        df = _fetch_history_with_retry(ticker, period)
 
         if df.empty:
             logger.warning(f"[price] Empty DataFrame for {ticker} — possibly delisted or invalid")

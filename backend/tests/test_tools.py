@@ -94,6 +94,55 @@ class TestPrice:
         assert out["status"] == "UNAVAILABLE"
         assert "yahoo down" in out["error"]
 
+    def test_retries_once_then_succeeds(self, monkeypatch):
+        # A transient blip on the first call must NOT falsely flag a valid ticker.
+        import tools.price as price
+        calls = {"n": 0}
+
+        class FakeTicker:
+            def __init__(self, t): pass
+            def history(self, period="3mo"):
+                calls["n"] += 1
+                if calls["n"] == 1:
+                    raise RuntimeError("transient blip")
+                return _FakeDF([_row(100.0), _row(102.0)])
+        monkeypatch.setattr(price.yf, "Ticker", FakeTicker)
+
+        out = price.fetch_price_data("AAPL", force_refresh=True)
+        assert out["status"] == "AVAILABLE"
+        assert calls["n"] == 2  # retried exactly once
+
+    def test_gives_up_after_max_attempts(self, monkeypatch):
+        import tools.price as price
+        calls = {"n": 0}
+
+        class FakeTicker:
+            def __init__(self, t): pass
+            def history(self, period="3mo"):
+                calls["n"] += 1
+                raise RuntimeError("persistent failure")
+        monkeypatch.setattr(price.yf, "Ticker", FakeTicker)
+
+        out = price.fetch_price_data("AAPL", force_refresh=True)
+        assert out["status"] == "UNAVAILABLE"
+        assert calls["n"] == price._FETCH_ATTEMPTS  # no infinite retry
+
+    def test_empty_df_is_not_retried(self, monkeypatch):
+        # Empty = legitimate (delisted/invalid). Retrying wastes time, so don't.
+        import tools.price as price
+        calls = {"n": 0}
+
+        class FakeTicker:
+            def __init__(self, t): pass
+            def history(self, period="3mo"):
+                calls["n"] += 1
+                return _FakeDF([])
+        monkeypatch.setattr(price.yf, "Ticker", FakeTicker)
+
+        out = price.fetch_price_data("ZZZZ", force_refresh=True)
+        assert out["status"] == "UNAVAILABLE"
+        assert calls["n"] == 1  # empty answer accepted on first try
+
 
 # ---------- technicals.py (pure helpers + flow via mocked price) ----------
 
