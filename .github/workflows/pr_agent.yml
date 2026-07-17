@@ -5,10 +5,9 @@ name: Qodo PR Agent
 # findings), and /improve (concrete suggestions). It also responds to slash
 # commands typed as PR comments, e.g. `/review`, `/ask "..."`, `/improve`.
 #
-# Requires ONE model key in repo secrets (Settings → Secrets and variables →
-# Actions). Set exactly one of:
-#   OPENAI_KEY   — OpenAI API key (default model path)
-#   or configure a different provider below (see the config.model overrides).
+# Model keys in repo secrets (Settings → Secrets and variables → Actions):
+#   GEMINI_API_KEY — Google AI Studio key; primary model (gemini/* in .pr_agent.toml)
+#   OPENAI_KEY     — OpenAI key; used only as fallback if Gemini fails (optional)
 # GITHUB_TOKEN is provided automatically by Actions — no setup needed.
 
 on:
@@ -33,6 +32,8 @@ jobs:
         uses: qodo-ai/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GOOGLE_AI_STUDIO_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Fallback provider — used only if the Gemini models fail. Optional.
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
           # Auto-commands to run when a PR is opened.
           github_action_config.auto_review: "true"

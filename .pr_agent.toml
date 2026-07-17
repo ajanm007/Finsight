@@ -3,11 +3,12 @@
 # Repo-level settings override the tool defaults; env vars in the workflow override these.
 
 [config]
-# Model to use. Default is an OpenAI model, driven by the OPENAI_KEY secret.
-# To use a different provider, set model + the matching key secret in the workflow
-# (e.g. model = "gemini/gemini-2.0-flash" with GOOGLE_AI_STUDIO_KEY).
-model = "gpt-4o"
-fallback_models = ["gpt-4o-mini"]
+# Model: Gemini primary (matches the app's LLM; free-tier friendly), OpenAI as
+# fallback if Gemini errors/rate-limits. Driven by GOOGLE_AI_STUDIO_KEY + OPENAI_KEY
+# secrets set in the workflow. PR-Agent walks the fallback list in order on failure.
+# Using the -latest alias so it tracks the current Flash model, not a pinned version.
+model = "gemini/gemini-flash-latest"
+fallback_models = ["gemini/gemini-flash-lite-latest", "gpt-4o-mini"]
 # Keep the bot quiet unless it has something to say.
 publish_output = true
 verbosity_level = 1
