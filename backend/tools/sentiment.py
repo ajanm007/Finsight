@@ -30,8 +30,21 @@ _sentiment_pipeline = None
 
 
 def _get_local_pipeline():
-    """Build the in-process FinBERT transformers pipeline."""
-    from transformers import pipeline
+    """Build the in-process FinBERT transformers pipeline.
+
+    Imports transformers lazily so the slim (api-mode) deploy — which omits
+    torch/transformers from requirements — never pays for them. If this is
+    reached without transformers installed, the operator set SENTIMENT_BACKEND
+    to local on a slim build; fail with an actionable message.
+    """
+    try:
+        from transformers import pipeline
+    except ImportError as e:
+        raise RuntimeError(
+            "SENTIMENT_BACKEND='local' requires transformers+torch, which are not "
+            "installed. Either install the full requirements.txt, or set "
+            "SENTIMENT_BACKEND='api' to use the HuggingFace Inference API instead."
+        ) from e
 
     logger.info("[sentiment] Loading ProsusAI/finbert model (first call)...")
     pipe = pipeline(

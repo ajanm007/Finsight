@@ -3,18 +3,19 @@
 # Repo-level settings override the tool defaults; env vars in the workflow override these.
 
 [config]
-# Model to use. Default is an OpenAI model, driven by the OPENAI_KEY secret.
-# To use a different provider, set model + the matching key secret in the workflow
-# (e.g. model = "gemini/gemini-2.0-flash" with GOOGLE_AI_STUDIO_KEY).
-model = "gpt-4o"
-fallback_models = ["gpt-4o-mini"]
+# Model: Gemini primary (matches the app's LLM; free-tier friendly), OpenAI as
+# fallback if Gemini errors/rate-limits. Driven by GOOGLE_AI_STUDIO_KEY + OPENAI_KEY
+# secrets set in the workflow. PR-Agent walks the fallback list in order on failure.
+# Using the -latest alias so it tracks the current Flash model, not a pinned version.
+model = "gemini/gemini-flash-latest"
+fallback_models = ["gemini/gemini-flash-lite-latest", "gpt-4o-mini"]
 # Keep the bot quiet unless it has something to say.
 publish_output = true
 verbosity_level = 1
 
 [pr_reviewer]
 # Focus review on correctness/security/tests — the repo is Python + React.
-require_score_review = false
+require_score_review = true
 require_tests_review = true
 require_security_review = true
 # Don't nag about PR size; feature branches here are intentionally scoped.
@@ -22,6 +23,12 @@ enable_review_labels_effort = true
 enable_review_labels_security = true
 # Inline code suggestions live in /improve, not /review — avoid duplication.
 num_code_suggestions = 0
+
+# --- Verdict ---
+# require_score_review (above) makes /review emit a 0-100 score + an explicit
+# recommendation ("looks good" / "needs work") in the review comment, so every PR
+# gets a clear approve-or-not signal. No auto-submitted GitHub approval — a human
+# clicks Approve based on the verdict (correct for a reviewed repo).
 # Extra guidance the reviewer applies to every PR (repo conventions).
 extra_instructions = """\
 Backend is FastAPI (Python 3.11), single-worker, SQLite/WAL + in-memory rate limiter — \
