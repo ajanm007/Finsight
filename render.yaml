@@ -1,0 +1,54 @@
+# Render Blueprint for the FinSight backend.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Deploy: Render Dashboard -> New -> Blueprint -> point at this repo.
+# The frontend is deployed separately on Vercel (VITE_API_URL -> this service URL).
+#
+# Notes:
+#  - Uses the SLIM requirements (requirements-api.txt) + SENTIMENT_BACKEND=api so
+#    the service fits the free tier (~512MB) without loading FinBERT in-process.
+#  - $PORT is injected by Render; uvicorn binds to it. Single worker (SQLite/WAL +
+#    in-memory rate limiter assume one worker).
+#  - Free tier has no persistent disk and spins down after ~15min idle, so the
+#    SQLite DB resets on restart. Add a Render disk (paid) or Turso to persist.
+
+services:
+  - type: web
+    name: finsight-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
+      # Sentiment via HF Inference API (keeps the process small).
+      - key: SENTIMENT_BACKEND
+        value: api
+      # Secrets — set these in the Render dashboard (sync:false = not in git).
+      - key: HF_TOKEN
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: NEWSAPI_KEY
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: SEC_USER_AGENT
+        sync: false
+      # CORS — set to the Vercel frontend origin after the frontend is deployed.
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # Auth — set the Supabase JWT secret to enforce auth on data endpoints.
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: AUTH_DISABLED
+        value: "false"

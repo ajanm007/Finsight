@@ -1,0 +1,33 @@
+# FinSight backend — SLIM deploy dependencies (api sentiment backend).
+#
+# Use this instead of requirements.txt on low-RAM hosts (Render/Fly free tiers)
+# with SENTIMENT_BACKEND=api. It omits torch, transformers, accelerate, and
+# sentence-transformers (~2-3GB) — FinBERT runs via the HuggingFace Inference
+# API instead of in-process.
+#
+# Trade-off: the ChromaDB vector store uses SentenceTransformerEmbeddingFunction
+# (needs torch), so retrieve_from_vector_store degrades to UNAVAILABLE on this
+# build. The router already handles that gracefully (try/except -> UNAVAILABLE),
+# so the analysis pipeline still completes — it just skips semantic memory.
+# For full parity without torch, switch vector_store.py to chromadb's built-in
+# ONNX embedding function (same all-MiniLM-L6-v2, no torch) — future enhancement.
+#
+# Pins mirror requirements.txt. Keep the two files in sync when bumping shared deps.
+
+fastapi~=0.135.0
+uvicorn~=0.42.0
+yfinance~=1.2.0
+ta~=0.11.0
+tavily-python~=0.7.0
+pydantic~=2.12.0
+pydantic-settings~=2.13.0
+python-dotenv~=1.1.0
+httpx~=0.28.0
+pytest~=9.0.0
+langchain-groq~=0.1
+langchain-google-genai~=2.0
+PyJWT==2.10.1
+sse-starlette~=3.4.0
+slowapi~=0.1.10
+chromadb~=1.5.0
+nsepython~=2.97
