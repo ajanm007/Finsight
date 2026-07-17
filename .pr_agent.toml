@@ -14,7 +14,7 @@ verbosity_level = 1
 
 [pr_reviewer]
 # Focus review on correctness/security/tests — the repo is Python + React.
-require_score_review = false
+require_score_review = true
 require_tests_review = true
 require_security_review = true
 # Don't nag about PR size; feature branches here are intentionally scoped.
@@ -22,6 +22,12 @@ enable_review_labels_effort = true
 enable_review_labels_security = true
 # Inline code suggestions live in /improve, not /review — avoid duplication.
 num_code_suggestions = 0
+
+# --- Verdict ---
+# require_score_review (above) makes /review emit a 0-100 score + an explicit
+# recommendation ("looks good" / "needs work") in the review comment, so every PR
+# gets a clear approve-or-not signal. No auto-submitted GitHub approval — a human
+# clicks Approve based on the verdict (correct for a reviewed repo).
 # Extra guidance the reviewer applies to every PR (repo conventions).
 extra_instructions = """\
 Backend is FastAPI (Python 3.11), single-worker, SQLite/WAL + in-memory rate limiter — \
