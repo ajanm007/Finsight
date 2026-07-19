@@ -347,7 +347,12 @@ export default function Login() {
   const [grantedFlash, setGrantedFlash] = useState(false);
   const [error, setError] = useState('');
   const [time, setTime] = useState('');
-  const [sessionId] = useState(() => Math.random().toString(36).substring(2, 10).toUpperCase());
+  // Cosmetic session label shown in the terminal UI (not used for auth). Uses the
+  // crypto API for non-predictable output — satisfies code scanning + correct idiom.
+  const [sessionId] = useState(() => {
+    const bytes = crypto.getRandomValues(new Uint8Array(4));
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+  });
 
   // Boot sequence state
   const [panelsVisible, setPanelsVisible] = useState(false);
